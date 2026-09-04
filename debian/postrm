@@ -1,0 +1,33 @@
+#!/usr/bin/env dash
+
+set -e
+
+. /etc/default/openmediavault
+. /usr/share/openmediavault/scripts/helper-functions
+
+remove_action() {
+	dpkg-trigger update-workbench
+}
+
+case "$1" in
+	purge)
+		remove_action
+		echo "Cleaning up configuration database ..."
+		omv_config_delete "/config/services/notifier"
+		rm -rf /etc/openmediavault-notifier
+	;;
+
+	remove)
+		remove_action
+	;;
+
+	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+	;;
+
+	*)
+		echo "postrm called with unknown argument '$1'" >&2
+		exit 1
+	;;
+esac
+
+exit 0

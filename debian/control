@@ -1,0 +1,20 @@
+Source: openmediavault-notifier
+Section: net
+XB-Plugin-Section: system
+Priority: optional
+Maintainer: Rui Almeida <rui.almeida011@gmail.com>
+Build-Depends: debhelper-compat (= 13), dh-sequence-single-binary, python3
+Standards-Version: 4.7.2
+Homepage: https://github.com/ruia/openmediavault-notifier
+
+Package: openmediavault-notifier
+Architecture: all
+Depends: openmediavault (>= 8),
+         python3,
+         util-linux,
+         ${misc:Depends}
+Description: openmediavault notification channels plugin
+ Forwards openmediavault system notifications to Discord, Slack, Telegram,
+ ntfy and Gotify, and sends improved email messages. Notifications are
+ classified and enriched, e.g. file system alerts name the disk label and
+ the shared folders on it, before delivery.

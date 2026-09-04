@@ -1,0 +1,28 @@
+#!/usr/bin/env dash
+
+set -e
+
+. /etc/default/openmediavault
+. /usr/share/openmediavault/scripts/helper-functions
+
+case "$1" in
+	remove)
+		# Restore normal email delivery if this plugin replaced it.
+		if [ "$(omv_config_get "/config/services/notifier/replaceemail")" = "1" ]; then
+			echo "Restoring openmediavault email delivery ..."
+			omv-env unset OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT
+			omv-salt stage run --no-color --quiet prepare
+			omv-salt deploy run --no-color --quiet postfix
+		fi
+	;;
+
+	upgrade|failed-upgrade|deconfigure)
+	;;
+
+	*)
+		echo "prerm called with unknown argument '$1'" >&2
+		exit 1
+	;;
+esac
+
+exit 0

@@ -1,0 +1,83 @@
+{
+	"type": "config",
+	"id": "conf.service.notifier",
+	"title": "Notifier",
+	"queryinfo": {
+		"xpath": ".//services/notifier",
+		"iterable": false
+	},
+	"properties": {
+		"enable": {
+			"type": "boolean",
+			"default": true
+		},
+		"replaceemail": {
+			"type": "boolean",
+			"default": false
+		},
+		"uiurl": {
+			"type": "string",
+			"default": ""
+		},
+		"channels": {
+			"type": "object",
+			"properties": {
+				"channel": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"uuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"enable": {
+								"type": "boolean",
+								"default": true
+							},
+							"name": {
+								"type": "string"
+							},
+							"type": {
+								"type": "string",
+								"enum": [ "discord", "slack", "telegram", "ntfy", "gotify", "email" ]
+							},
+							"url": {
+								"type": "string",
+								"default": ""
+							},
+							"token": {
+								"type": "string",
+								"default": ""
+							},
+							"chatid": {
+								"type": "string",
+								"default": ""
+							},
+							"topic": {
+								"type": "string",
+								"default": ""
+							},
+							"recipients": {
+								"type": "string",
+								"default": ""
+							},
+							"sendername": {
+								"type": "string",
+								"default": ""
+							},
+							"events": {
+								"type": "string",
+								"default": ""
+							},
+							"skiprecovery": {
+								"type": "boolean",
+								"default": false
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

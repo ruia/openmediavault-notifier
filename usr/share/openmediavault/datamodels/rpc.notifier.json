@@ -1,0 +1,95 @@
+[{
+	"type": "rpc",
+	"id": "rpc.notifier.setsettings",
+	"params": {
+		"type": "object",
+		"properties": {
+			"enable": {
+				"type": "boolean",
+				"required": true
+			},
+			"replaceemail": {
+				"type": "boolean",
+				"required": true
+			},
+			"uiurl": {
+				"type": "string",
+				"required": true
+			}
+		}
+	}
+},{
+	"type": "rpc",
+	"id": "rpc.notifier.getchannel",
+	"params": {
+		"type": "object",
+		"properties": {
+			"uuid": {
+				"type": "string",
+				"required": true
+			}
+		}
+	}
+},{
+	"type": "rpc",
+	"id": "rpc.notifier.setchannel",
+	"params": {
+		"type": "object",
+		"properties": {
+			"uuid": {
+				"type": "string",
+				"format": "uuidv4",
+				"required": true
+			},
+			"enable": {
+				"type": "boolean",
+				"required": true
+			},
+			"name": {
+				"type": "string",
+				"minLength": 1,
+				"required": true
+			},
+			"type": {
+				"type": "string",
+				"enum": [ "discord", "slack", "telegram", "ntfy", "gotify", "email" ],
+				"required": true
+			},
+			"url": {
+				"type": "string",
+				"required": true
+			},
+			"token": {
+				"type": "string",
+				"required": true
+			},
+			"chatid": {
+				"type": "string",
+				"required": true
+			},
+			"topic": {
+				"type": "string",
+				"required": true
+			},
+			"recipients": {
+				"type": "string",
+				"required": true
+			},
+			"sendername": {
+				"type": "string",
+				"required": true
+			},
+			"events": {
+				"type": "array",
+				"items": {
+					"type": "string"
+				},
+				"required": true
+			},
+			"skiprecovery": {
+				"type": "boolean",
+				"required": true
+			}
+		}
+	}
+}]

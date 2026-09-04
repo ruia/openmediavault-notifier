@@ -1,0 +1,203 @@
+version: "1.0"
+type: component
+data:
+  name: omv-system-notifier-channel-form-page
+  type: formPage
+  config:
+    request:
+      service: Notifier
+      get:
+        method: getChannel
+        params:
+          uuid: "{{ _routeParams.uuid | default('') }}"
+      post:
+        method: setChannel
+    fields:
+      - type: confObjUuid
+      - type: hidden
+        name: existingnames
+        value: []
+        submitValue: false
+      - type: checkbox
+        name: enable
+        label: _("Enabled")
+        value: true
+      - type: textInput
+        name: name
+        label: _("Name")
+        value: ""
+        validators:
+          required: true
+          custom:
+            - constraint:
+                operator: not
+                arg0:
+                  operator: in
+                  arg0:
+                    prop: name
+                  arg1:
+                    prop: existingnames
+              errorData: _("A channel with this name already exists.")
+      - type: select
+        name: type
+        label: _("Type")
+        value: "discord"
+        store:
+          data:
+            - - "discord"
+              - "Discord"
+            - - "slack"
+              - "Slack"
+            - - "telegram"
+              - "Telegram"
+            - - "ntfy"
+              - "ntfy"
+            - - "gotify"
+              - "Gotify"
+            - - "email"
+              - _("Email")
+        validators:
+          required: true
+      - type: textInput
+        name: url
+        label: _("URL")
+        hint: _("For Discord and Slack the incoming webhook URL, for ntfy and Gotify the base URL of the server, e.g. https://ntfy.sh or https://gotify.example.com")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: in
+              arg0:
+                prop: type
+              arg1:
+                - "discord"
+                - "slack"
+                - "ntfy"
+                - "gotify"
+        validators:
+          requiredIf:
+            operator: in
+            arg0:
+              prop: type
+            arg1:
+              - "discord"
+              - "slack"
+              - "ntfy"
+              - "gotify"
+          pattern:
+            pattern: "^(https?://.+)?$"
+            errorData: _("The URL must start with http:// or https://.")
+      - type: passwordInput
+        name: token
+        label: _("Token")
+        hint: _("For Telegram the bot token given by @BotFather, for Gotify the application token, for ntfy an access token which is only needed for protected topics.")
+        autocomplete: new-password
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: in
+              arg0:
+                prop: type
+              arg1:
+                - "telegram"
+                - "ntfy"
+                - "gotify"
+        validators:
+          requiredIf:
+            operator: in
+            arg0:
+              prop: type
+            arg1:
+              - "telegram"
+              - "gotify"
+      - type: textInput
+        name: chatid
+        label: _("Chat ID")
+        hint: _("The Telegram chat, group or channel that receives the messages.")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: eq
+              arg0:
+                prop: type
+              arg1: "telegram"
+        validators:
+          requiredIf:
+            operator: eq
+            arg0:
+              prop: type
+            arg1: "telegram"
+      - type: textInput
+        name: topic
+        label: _("Topic")
+        hint: _("The ntfy topic to publish to.")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: eq
+              arg0:
+                prop: type
+              arg1: "ntfy"
+        validators:
+          requiredIf:
+            operator: eq
+            arg0:
+              prop: type
+            arg1: "ntfy"
+      - type: textInput
+        name: recipients
+        label: _("Recipients")
+        hint: _("Comma separated email addresses. Leave empty to use the primary and secondary addresses from the notification settings.")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: eq
+              arg0:
+                prop: type
+              arg1: "email"
+      - type: textInput
+        name: sendername
+        label: _("Sender name")
+        hint: _("The name shown as the sender in Discord and Slack and used in the From header of emails. Defaults to the host name.")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: in
+              arg0:
+                prop: type
+              arg1:
+                - "discord"
+                - "slack"
+                - "email"
+      - type: select
+        name: events
+        label: _("Events")
+        hint: _("The events forwarded to this channel. Leave empty to forward every event.")
+        multiple: true
+        value: []
+        valueField: value
+        textField: text
+        store:
+          proxy:
+            service: Notifier
+            get:
+              method: getEventClasses
+      - type: checkbox
+        name: skiprecovery
+        label: _("Skip recovery events")
+        hint: _("Do not forward events that report a return to normal, e.g. a file system that is back under its space threshold.")
+        value: false
+    buttons:
+      - template: submit
+        execute:
+          type: url
+          url: "/system/notification/notifier"
+      - template: cancel
+        execute:
+          type: url
+          url: "/system/notification/notifier"

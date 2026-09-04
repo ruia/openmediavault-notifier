@@ -1,0 +1,13 @@
+openmediavault-notifier (8.0.2) stable; urgency=low
+
+  * Add a per-channel sender name for Discord, Slack and email.
+  * Validate the channel name for uniqueness in the form.
+  * Fix the create and edit page URLs.
+
+ -- Rui Almeida <rui.almeida011@gmail.com>  Fri, 04 Sep 2026 14:31:06 +0100
+
+openmediavault-notifier (8.0.1) stable; urgency=low
+
+  * Initial release.
+
+ -- Rui Almeida <rui.almeida011@gmail.com>  Fri, 04 Sep 2026 12:00:40 +0100

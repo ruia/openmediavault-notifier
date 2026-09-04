@@ -1,0 +1,8 @@
+version: "1.0"
+type: navigation-item
+data:
+  path: "system.notification.notifier"
+  position: 30
+  text: _("Channels")
+  icon: "mdi:bell-ring"
+  url: "/system/notification/notifier"

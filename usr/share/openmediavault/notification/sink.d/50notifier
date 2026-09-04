@@ -1,0 +1,5 @@
+#!/bin/sh
+# openmediavault notification sink: forward the message to omv-notifier.
+# Never fail here, a non-zero exit would make postfix retry the delivery.
+/usr/sbin/omv-notifier dispatch "$@" || logger -t omv-notifier -p daemon.err "dispatch failed with exit status $?"
+exit 0

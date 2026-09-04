@@ -1,0 +1,112 @@
+version: "1.0"
+type: component
+data:
+  name: omv-system-notifier-tabs-page
+  type: tabsPage
+  config:
+    tabs:
+      - type: datatable
+        label: _("Channels")
+        config:
+          autoReload: false
+          stateId: 3f1c9d5a-8a1e-4c6b-9c2e-5b7a1d2e4f60
+          sorters:
+            - dir: asc
+              prop: name
+          store:
+            proxy:
+              service: Notifier
+              get:
+                method: getChannelList
+          rowEnumFmt: "{{ name }}"
+          columns:
+            - name: _("Enabled")
+              prop: enable
+              flexGrow: 1
+              sortable: true
+              cellTemplateName: checkIcon
+            - name: _("Name")
+              prop: name
+              flexGrow: 2
+              sortable: true
+            - name: _("Type")
+              prop: typetext
+              flexGrow: 1
+              sortable: true
+            - name: _("Events")
+              prop: events
+              flexGrow: 3
+              cellTemplateName: chip
+              cellTemplateConfig:
+                separator: ','
+            - name: _("Skip recovery")
+              prop: skiprecovery
+              flexGrow: 1
+              sortable: true
+              cellTemplateName: checkIcon
+          actions:
+            - template: create
+              execute:
+                type: url
+                url: "/system/notification/notifier/create"
+            - template: edit
+              execute:
+                type: url
+                url: "/system/notification/notifier/edit/{{ _selected[0].uuid }}"
+            - type: iconButton
+              icon: "mdi:send"
+              tooltip: _("Send test notification")
+              enabledConstraints:
+                minSelected: 1
+                maxSelected: 1
+              execute:
+                type: request
+                request:
+                  service: Notifier
+                  method: testChannel
+                  params:
+                    uuid: "{{ _selected[0].uuid }}"
+                  progressMessage: _("Please wait, sending a test notification ...")
+                  successNotification: _("The test notification has been sent.")
+            - template: delete
+              execute:
+                type: request
+                request:
+                  service: Notifier
+                  method: deleteChannel
+                  params:
+                    uuid: "{{ uuid }}"
+      - type: form
+        label: _("Settings")
+        config:
+          request:
+            service: Notifier
+            get:
+              method: getSettings
+            post:
+              method: setSettings
+          fields:
+            - type: checkbox
+              name: enable
+              label: _("Enabled")
+              value: true
+            - type: checkbox
+              name: replaceemail
+              label: _("Replace openmediavault emails")
+              hint: _("Discard the original emails sent by openmediavault so that only the channels configured here deliver notifications. Add an 'Email' channel to keep receiving improved emails. Requires an external SMTP server in the notification settings.")
+              value: false
+            - type: textInput
+              name: uiurl
+              label: _("Web interface URL")
+              hint: _("Optional URL of this web interface, added as a link to notifications, e.g. https://nas.local/")
+              value: ""
+              validators:
+                pattern:
+                  pattern: "^(https?://.+)?$"
+                  errorData: _("The URL must start with http:// or https://.")
+          buttons:
+            - template: submit
+            - template: cancel
+              execute:
+                type: url
+                url: "/system/notification/notifier"

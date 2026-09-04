@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            debhelper dpkg-dev fakeroot make python3 python3-yaml php-cli git ca-certificates curl
+
+      - name: Test
+        run: make test
+
+      - name: Lint
+        run: make lint
+
+      - name: Build package
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p dist
+          mv ../openmediavault-notifier_*.deb dist/
+          ls -l dist
+
+      - name: Check changelog version matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(dpkg-parsechangelog --show-field Version)"
+          test "v${version}" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != changelog ${version}"; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openmediavault-notifier
+          path: dist/*.deb
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apt-get install -y --no-install-recommends gh
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          gh release create "${GITHUB_REF_NAME}" dist/*.deb \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "$(dpkg-parsechangelog --show-field Changes | sed '1,3d')"

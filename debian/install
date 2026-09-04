@@ -1,0 +1,4 @@
+usr/share/openmediavault/* usr/share/openmediavault
+usr/share/openmediavault-notifier/* usr/share/openmediavault-notifier
+usr/sbin/* usr/sbin
+srv/* srv

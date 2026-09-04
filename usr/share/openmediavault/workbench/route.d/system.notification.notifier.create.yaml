@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/system/notification/notifier/create"
+  title: _("Create")
+  editing: true
+  notificationTitle: _("Created notification channel.")
+  component: omv-system-notifier-channel-form-page

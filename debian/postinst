@@ -1,0 +1,31 @@
+#!/usr/bin/env dash
+
+set -e
+
+. /etc/default/openmediavault
+. /usr/share/openmediavault/scripts/helper-functions
+
+case "$1" in
+	configure)
+		echo "Updating configuration database ..."
+		omv-confdbadm create "conf.service.notifier"
+		if [ -n "$2" ]; then
+			omv-confdbadm migrate "conf.service.notifier" "${2}"
+		fi
+
+		echo "Deploying notifier configuration ..."
+		omv-salt deploy run --no-color --quiet notifier
+
+		dpkg-trigger update-workbench
+	;;
+
+	abort-upgrade|abort-remove|abort-deconfigure)
+	;;
+
+	*)
+		echo "postinst called with unknown argument '$1'" >&2
+		exit 1
+	;;
+esac
+
+exit 0
