@@ -52,11 +52,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           apt-get install -y --no-install-recommends gh
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           notes="$(dpkg-parsechangelog --show-field Changes | tail -n +3)"
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" dist/*.deb --clobber
+          if gh release view "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" dist/*.deb --clobber -R "${GITHUB_REPOSITORY}"
           else
-            gh release create "${GITHUB_REF_NAME}" dist/*.deb \
+            gh release create "${GITHUB_REF_NAME}" dist/*.deb -R "${GITHUB_REPOSITORY}" \
               --title "${GITHUB_REF_NAME}" --notes "${notes}"
           fi
