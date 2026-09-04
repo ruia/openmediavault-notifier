@@ -53,6 +53,10 @@ jobs:
         run: |
           apt-get install -y --no-install-recommends gh
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          gh release create "${GITHUB_REF_NAME}" dist/*.deb \
-            --title "${GITHUB_REF_NAME}" \
-            --notes "$(dpkg-parsechangelog --show-field Changes | sed '1,3d')"
+          notes="$(dpkg-parsechangelog --show-field Changes | tail -n +3)"
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" dist/*.deb --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/*.deb \
+              --title "${GITHUB_REF_NAME}" --notes "${notes}"
+          fi
