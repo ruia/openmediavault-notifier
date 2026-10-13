@@ -45,6 +45,23 @@ class MonitTest(unittest.TestCase):
         self.assertEqual(notification.severity, "warning")
         self.assertFalse(notification.recovery)
 
+    def test_resource_limit_on_process_check_is_process_warning(self):
+        notification = classify(
+            "Monitoring alert -- Resource limit matched nginx",
+            "Service: nginx\nEvent: Resource limit matched\n", hostname="storagecenter",
+        )
+        self.assertEqual(notification.event, "monit-process")
+        self.assertEqual(notification.severity, "warning")
+        self.assertEqual(notification.fields["service"], "nginx")
+
+    def test_system_check_matches_lowercased_or_fqdn_hostname(self):
+        for service in ("storagecenter", "storagecenter.home.arpa"):
+            notification = classify(
+                f"Monitoring alert -- Resource limit matched {service}",
+                f"Service: {service}\nEvent: Resource limit matched\n", hostname="StorageCenter",
+            )
+            self.assertEqual(notification.event, "monit-resource", service)
+
     def test_process_failure_is_critical(self):
         notification = classify("Monitoring alert -- Does not exist nginx", "Service: nginx\nEvent: Does not exist\n")
         self.assertEqual(notification.event, "monit-process")
@@ -117,6 +134,26 @@ class OtherSourcesTest(unittest.TestCase):
         self.assertEqual(classify("Errors were detected on the file system mounted at /srv/x [UUID=y]", "").severity, "critical")
         self.assertEqual(classify("Scrub report of the file system mounted at /srv/x [UUID=y]", "").severity, "info")
         self.assertEqual(classify("Test message from nas", "").event, "system")
+
+    def test_nut_upssched_messages(self):
+        cases = (
+            ("UPS ups@localhost - Running on line power. Shutdown cancelled.", "info", True),
+            ("Communications with the UPS ups@localhost are established", "info", True),
+            ("UPS ups@localhost - Line Power Fail, system running on battery power. "
+             "Shutdown imminent in 30 seconds.", "critical", False),
+            ("UPS ups@localhost - Line Power Fail, system running on battery power", "warning", False),
+            ("UPS ups@localhost - Low battery power", "critical", False),
+            ("UPS ups@localhost: - Forced shutdown in progress", "critical", False),
+            ("Automatic logout and shutdown proceeding", "critical", False),
+            ("upsmon parent process died - shutdown impossible", "critical", False),
+            ("Communications with the UPS ups@localhost are lost", "warning", False),
+            ("Communications with the UPS ups@localhost cannot be established", "warning", False),
+            ("UPS ups@localhost - The battery needs to be replaced!", "warning", False),
+        )
+        for body, severity, recovery in cases:
+            notification = classify("UPS notification from nas", body + "\n")
+            self.assertEqual(notification.event, "system", body)
+            self.assertEqual((notification.severity, notification.recovery), (severity, recovery), body)
 
     def test_unknown(self):
         notification = classify("Something else entirely", "body")

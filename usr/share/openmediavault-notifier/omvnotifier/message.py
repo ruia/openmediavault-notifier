@@ -52,10 +52,15 @@ _SYSTEM_SUBJECTS = (
     (re.compile(r"errors were detected", re.IGNORECASE), "critical"),
     (re.compile(r"certificate expires", re.IGNORECASE), "warning"),
     (re.compile(r"reboot required", re.IGNORECASE), "warning"),
-    (re.compile(r"\bUPS\b"), "warning"),
     (re.compile(r"pending configuration", re.IGNORECASE), "info"),
     (re.compile(r"scrub report", re.IGNORECASE), "info"),
     (re.compile(r"test message from", re.IGNORECASE), "info"),
+)
+_UPS_SUBJECT = re.compile(r"\bUPS\b")
+_UPS_RECOVERY = re.compile(r"running on line power|communications with the UPS .* are established", re.IGNORECASE)
+_UPS_CRITICAL = re.compile(
+    r"low battery|forced shutdown|shutdown imminent|being shutdown|shutdown proceeding|shutdown impossible",
+    re.IGNORECASE,
 )
 _SMART_WARNING_TYPES = {"temperature", "temperaturechanged"}
 _SMART_INFO_TYPES = {"emailtest"}
@@ -117,8 +122,10 @@ def _classify_monit(subject, body, hostname):
     recovery = bool(_MONIT_RECOVERY.search(event_name))
     if service == "rootfs" or service.startswith(("filesystem", "mountpoint")):
         event, severity = "monit-filesystem", "info" if recovery else "warning"
-    elif event_name.startswith("Resource limit") or (hostname and service == hostname):
+    elif hostname and service.split(".", 1)[0].lower() == hostname.lower():
         event, severity = "monit-resource", "info" if recovery else "warning"
+    elif event_name.startswith("Resource limit"):
+        event, severity = "monit-process", "info" if recovery else "warning"
     else:
         event, severity = "monit-process", "info" if recovery else "critical"
     fields.pop("date", None)
@@ -178,6 +185,16 @@ def _classify_cron(subject, body, hostname):
     return "cron", "info", False, _non_empty({"name": name})
 
 
+def _classify_ups(subject, body, hostname):
+    if not _UPS_SUBJECT.search(subject):
+        return None
+    if _UPS_RECOVERY.search(body):
+        return "system", "info", True, {}
+    if _UPS_CRITICAL.search(body):
+        return "system", "critical", False, {}
+    return "system", "warning", False, {}
+
+
 def _classify_auth(subject, body, hostname):
     if not _AUTH_SUBJECT.search(subject):
         return None
@@ -201,6 +218,7 @@ _MATCHERS = (
     _classify_mdadm,
     _classify_updates,
     _classify_cron,
+    _classify_ups,
     _classify_auth,
     _classify_system,
 )

@@ -21,11 +21,26 @@ class HeadlineTest(unittest.TestCase):
 
     def test_filesystem_alert_falls_back_to_tag_then_mount_dir(self):
         notification = Notification(subject="s", body="", event="monit-filesystem", severity="warning",
-                                    fields={"service": "filesystem_x", "tags": "backup, cold", "mount_dir": "/srv/x"})
+                                    fields={"service": "filesystem_x", "event": "Resource limit matched",
+                                            "tags": "backup, cold", "mount_dir": "/srv/x"})
         self.assertIn("Disk backup is running out of space", render(notification, self.config).title)
         notification = Notification(subject="s", body="", event="monit-filesystem", severity="warning",
-                                    fields={"service": "filesystem_x", "mount_dir": "/srv/x"})
+                                    fields={"service": "filesystem_x", "event": "Resource limit matched",
+                                            "mount_dir": "/srv/x"})
         self.assertIn("Disk /srv/x is running out of space", render(notification, self.config).title)
+
+    def test_filesystem_headline_follows_event(self):
+        cases = (
+            ("Does not exist", "Mount point /srv/x is missing"),
+            ("Exists", "Mount point /srv/x is available again"),
+            ("Filesystem flags changed", "File system /srv/x: mount flags changed"),
+            ("Data access error", "File system /srv/x: data access error"),
+        )
+        for event, headline in cases:
+            notification = classify(f"Monitoring alert -- {event} filesystem_srv_x",
+                                    f"Service: filesystem_srv_x\nEvent: {event}\n")
+            notification.fields["mount_dir"] = "/srv/x"
+            self.assertEqual(render(notification, self.config).title, f"storagecenter: {headline}", event)
 
     def test_missing_mountpoint(self):
         notification = Notification(subject="s", body="", event="monit-filesystem", severity="warning",

@@ -70,10 +70,15 @@ def _filesystem_headline(notification: Notification) -> str:
         or fields.get("mount_dir")
         or fields.get("service", "file system")
     )
-    if fields.get("service", "").startswith("mountpoint"):
+    event = fields.get("event", "")
+    if fields.get("service", "").startswith("mountpoint") or event in ("Does not exist", "Exists"):
         return f"Mount point {name} is available again" if notification.recovery \
             else f"Mount point {name} is missing"
-    usage = _PERCENT.search(fields.get("description", ""))
+    if event.startswith("Filesystem flags"):
+        return f"File system {name}: mount flags changed"
+    if not event.startswith("Resource limit"):
+        return f"File system {name}: {event.lower() or 'event'}"
+    usage =_PERCENT.search(fields.get("description", ""))
     usage_text = f" ({usage.group(1)}% used)" if usage else ""
     if notification.recovery:
         return f"Disk {name} back under the space threshold{usage_text}"
