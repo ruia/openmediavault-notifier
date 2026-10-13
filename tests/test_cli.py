@@ -99,10 +99,23 @@ class DispatchTest(CliTestCase):
 
     def test_unexpected_exception_exits_zero(self):
         write_config(self.config_path)
-        self.deliver.side_effect = RuntimeError("unexpected")
+        enrich.list_block_devices.side_effect = RuntimeError("unexpected")
         code, _, err = self.dispatch()
         self.assertEqual(code, 0)
         self.assertIn("unhandled error in dispatch", err)
+
+    def test_unexpected_channel_error_does_not_stop_other_channels(self):
+        write_config(self.config_path, channels=[
+            raw_channel(uuid="1", name="A", type="discord", url="https://d/x"),
+            raw_channel(uuid="2", name="B", type="discord", url="https://d/y"),
+        ])
+        self.deliver.side_effect = [ValueError("bad header"), None]
+        code, _, err = self.dispatch()
+        self.assertEqual(code, 0)
+        self.assertEqual(self.deliver.call_count, 2)
+        self.assertIn("channel 'A' (discord): unexpected error", err)
+        self.assertIn("ValueError: bad header", err)
+        self.assertIn("delivered 'monit-filesystem' event to channel 'B'", err)
 
     def test_ignores_own_email_copy(self):
         write_config(self.config_path)

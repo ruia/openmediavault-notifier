@@ -103,6 +103,8 @@ def cmd_dispatch(args) -> int:
             channels.deliver(channel, rendered, config)
         except channels.DeliveryError as exc:
             LOG.error("channel '%s' (%s): %s", channel.name, channel.type, exc)
+        except Exception:  # noqa: BLE001 - one broken channel must not keep the alert from the others
+            LOG.exception("channel '%s' (%s): unexpected error", channel.name, channel.type)
         else:
             LOG.info("delivered '%s' event to channel '%s'", notification.event, channel.name)
     return 0
