@@ -40,8 +40,7 @@ case "$1" in
 			echo "Restoring openmediavault email delivery ..."
 			if ! LC_ALL=C.UTF-8 omv-salt stage run --no-color --quiet prepare ||
 					! LC_ALL=C.UTF-8 omv-salt deploy run --no-color --quiet postfix; then
-				echo "Updating the Postfix configuration failed, apply the pending changes in the web interface." >&2
-				omv_module_set_dirty postfix
+				echo "Updating the Postfix configuration failed. Mail is delivered normally, but main.cf still lists ${TRANSPORT_MAP}. Run 'omv-salt stage run prepare' and 'omv-salt deploy run postfix' once the problem is fixed." >&2
 			fi
 		fi
 	;;
