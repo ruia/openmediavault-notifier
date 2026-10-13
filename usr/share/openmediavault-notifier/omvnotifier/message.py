@@ -30,7 +30,6 @@ class Notification:
     fields: dict = field(default_factory=dict)
 
 
-_HOST_PREFIX = re.compile(r"^\[[^\]]*\]\s*")
 _MONIT_SUBJECT = re.compile(r"^Monitoring (?P<action>\S+) -- (?P<event>.+) (?P<service>\S+)$")
 _MONIT_FIELD = re.compile(r"^(Host|Date|Service|Event|Description):[ \t]*(.*)$", re.MULTILINE)
 _MONIT_ACTION = re.compile(r"^This triggered the monitoring system to:[ \t]*(.*)$", re.MULTILINE)
@@ -65,7 +64,7 @@ _MDADM_RECOVERY = {"rebuildfinished", "spareactive"}
 
 
 def classify(subject, body, *, hostname="", sender="", recipients=(), date="") -> Notification:
-    clean_subject = _HOST_PREFIX.sub("", subject or "").strip()
+    clean_subject = (subject or "").strip()
     body = body or ""
     for matcher in _MATCHERS:
         result = matcher(clean_subject, body, hostname)

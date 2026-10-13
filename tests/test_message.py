@@ -11,7 +11,7 @@ class MonitTest(unittest.TestCase):
         self.assertEqual(notification.event, "monit-filesystem")
         self.assertTrue(notification.recovery)
         self.assertEqual(notification.severity, "info")
-        self.assertEqual(notification.subject, MONIT_FS_SUBJECT.split("] ", 1)[1])
+        self.assertEqual(notification.subject, MONIT_FS_SUBJECT)
         self.assertEqual(
             notification.fields["service"],
             "filesystem_srv_dev-disk-by-uuid-01fd2738-e207-4442-b826-a6ac1025953a",
@@ -87,7 +87,7 @@ class OtherSourcesTest(unittest.TestCase):
         self.assertTrue(notification.recovery)
 
     def test_updates(self):
-        notification = classify("[nas] 12 package update(s) available", "")
+        notification = classify("12 package update(s) available", "")
         self.assertEqual(notification.event, "updates")
         self.assertEqual(notification.fields["count"], "12")
         self.assertEqual(classify("No package updates available", "").fields["count"], "0")
