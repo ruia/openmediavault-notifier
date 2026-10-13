@@ -25,6 +25,9 @@
   'skiprecovery': channel.skiprecovery | to_bool}) %}
 {% endfor %}
 
+{% set email_channel_enabled = channel_list | selectattr('type', 'equalto', 'email')
+  | selectattr('enable') | list | length > 0 %}
+
 {% set mountpoint_list = [] %}
 {% for mountpoint in mountpoints %}
 {% set _ = mountpoint_list.append({
@@ -58,7 +61,7 @@
     'sender': email.sender,
     'authenable': email.authentication.enable | to_bool,
     'username': email.authentication.username,
-    'password': email.authentication.password,
+    'password': email.authentication.password if email_channel_enabled else '',
     'primaryemail': email.primaryemail,
     'secondaryemail': email.secondaryemail},
   'channels': channel_list,
