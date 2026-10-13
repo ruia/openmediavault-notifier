@@ -44,6 +44,16 @@ _SMART_INFO = re.compile(r"^Device info:\s*\n(?P<info>.+)$", re.MULTILINE)
 _MDADM_SUBJECT = re.compile(r"^(?P<event>[A-Za-z]+) event on (?P<device>/dev/[^:\s]+):(?P<host>\S+)$")
 _UPDATES_SUBJECT = re.compile(r"^(?:(?P<count>\d+) package update\(s\) available|No package updates available)$")
 _CRON_SUBJECT = re.compile(r"^Cron(?:\s*-\s*(?P<name>.+)|\s*<.*)?$")
+_CLAMAV_SCAN_SUBJECT = re.compile(r"^ClamAV(?: - (?P<name>.+))?$")
+_USBBACKUP_SUBJECT = re.compile(
+    r"^USB Backup \(shared folder=(?P<folder>.*), device=(?P<device>[^)]*)\)(?: - (?P<name>.+))?$"
+)
+_LISTCHANGES_SUBJECT = re.compile(r"^apt-listchanges: (?:news|changelogs) for \S+$")
+_UNATTENDED_SUBJECT = re.compile(
+    r"^(?P<flags>(?:\[[^\]]*\])*)\s*unattended-upgrades result for (?P<host>\S+): (?P<result>SUCCESS|FAILURE)$"
+)
+_IO_ERROR_SUBJECT = re.compile(r"^I/O error detected on device '(?P<device>[^']+)'$")
+_VIRUS_SUBJECT = re.compile(r"^VIRUS ALERT: ")
 _AUTH_SUBJECT = re.compile(
     r"locked users|log ?in|sudo|unauthori[sz]ed|two.factor|\b2fa\b|authentication|one.time password",
     re.IGNORECASE,
@@ -171,18 +181,37 @@ def _classify_mdadm(subject, body, hostname):
 
 def _classify_updates(subject, body, hostname):
     match = _UPDATES_SUBJECT.match(subject)
-    if not match:
-        return None
-    fields = {"count": match.group("count") or "0"}
-    return "updates", "info", False, fields
+    if match:
+        return "updates", "info", False, {"count": match.group("count") or "0"}
+    if _LISTCHANGES_SUBJECT.match(subject):
+        return "updates", "info", False, {}
+    match = _UNATTENDED_SUBJECT.match(subject)
+    if match:
+        failed = match.group("result") == "FAILURE"
+        severity = "warning" if failed or match.group("flags") else "info"
+        return "updates", severity, False, {"host": match.group("host")}
+    return None
 
 
 def _classify_cron(subject, body, hostname):
-    match = _CRON_SUBJECT.match(subject)
-    if not match:
-        return None
-    name = (match.group("name") or "").strip()
-    return "cron", "info", False, _non_empty({"name": name})
+    match = _CRON_SUBJECT.match(subject) or _CLAMAV_SCAN_SUBJECT.match(subject)
+    if match:
+        name = (match.group("name") or "").strip()
+        return "cron", "info", False, _non_empty({"name": name})
+    match = _USBBACKUP_SUBJECT.match(subject)
+    if match:
+        name = (match.group("name") or "").strip() or f"USB backup of {match.group('folder')}"
+        return "cron", "info", False, {"name": name, "device": match.group("device")}
+    return None
+
+
+def _classify_alerts(subject, body, hostname):
+    match = _IO_ERROR_SUBJECT.match(subject)
+    if match:
+        return "system", "critical", False, {"device": f"/dev/{match.group('device')}"}
+    if _VIRUS_SUBJECT.match(subject):
+        return "system", "critical", False, {}
+    return None
 
 
 def _classify_ups(subject, body, hostname):
@@ -218,6 +247,7 @@ _MATCHERS = (
     _classify_mdadm,
     _classify_updates,
     _classify_cron,
+    _classify_alerts,
     _classify_ups,
     _classify_auth,
     _classify_system,

@@ -155,6 +155,36 @@ class OtherSourcesTest(unittest.TestCase):
             self.assertEqual(notification.event, "system", body)
             self.assertEqual((notification.severity, notification.recovery), (severity, recovery), body)
 
+    def test_package_mail_subjects(self):
+        for subject in ("apt-listchanges: news for nas", "apt-listchanges: changelogs for nas",
+                        "=?UTF-8?Q?apt-listchanges=3A_news_for_nas?="):
+            self.assertEqual(classify(subject, "").event, "updates", subject)
+        cases = (
+            ("unattended-upgrades result for nas.lan: SUCCESS", "info"),
+            ("unattended-upgrades result for nas.lan: FAILURE", "warning"),
+            ("[reboot required] unattended-upgrades result for nas.lan: SUCCESS", "warning"),
+            ("[package on hold][reboot required] unattended-upgrades result for nas.lan: SUCCESS", "warning"),
+        )
+        for subject, severity in cases:
+            notification = classify(subject, "")
+            self.assertEqual((notification.event, notification.severity), ("updates", severity), subject)
+            self.assertEqual(notification.subject, subject)
+            self.assertEqual(notification.fields["host"], "nas.lan")
+
+    def test_plugin_and_kernel_subjects(self):
+        notification = classify("I/O error detected on device 'sdb'", "")
+        self.assertEqual((notification.event, notification.severity), ("system", "critical"))
+        self.assertEqual(notification.fields["device"], "/dev/sdb")
+        notification = classify("VIRUS ALERT: Win.Test.EICAR_HDB-1 login", "")
+        self.assertEqual((notification.event, notification.severity), ("system", "critical"))
+        self.assertEqual(classify("ClamAV - Scan summary", "").fields["name"], "Scan summary")
+        self.assertEqual(classify("ClamAV - nightly login scan", "").event, "cron")
+        notification = classify("USB Backup (shared folder=photos, device=/dev/disk/by-uuid/abc)", "")
+        self.assertEqual(notification.event, "cron")
+        self.assertEqual(notification.fields, {"name": "USB backup of photos", "device": "/dev/disk/by-uuid/abc"})
+        notification = classify("USB Backup (shared folder=a, b, device=/dev/sdc1) - Weekly", "")
+        self.assertEqual(notification.fields["name"], "Weekly")
+
     def test_unknown(self):
         notification = classify("Something else entirely", "body")
         self.assertEqual(notification.event, "unknown")
