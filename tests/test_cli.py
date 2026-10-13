@@ -7,10 +7,12 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from omvnotifier import channels, cli, enrich
+from omvnotifier import channels, cli, enrich, message, render
 from omvnotifier import config as config_module
 
-from helpers import LSBLK_DEVICES, MONIT_FS_BODY, MONIT_FS_SUBJECT, raw_channel, write_config
+from helpers import (
+    LSBLK_DEVICES, MONIT_FS_BODY, MONIT_FS_SUBJECT, make_channel, make_config, raw_channel, write_config,
+)
 
 
 class CliTestCase(unittest.TestCase):
@@ -110,6 +112,30 @@ class DispatchTest(CliTestCase):
         self.assertEqual(code, 0)
         self.deliver.assert_not_called()
         self.assertIn("ignoring message sent by omv-notifier itself", err)
+
+    def test_own_message_mark_in_content_is_not_trusted(self):
+        write_config(self.config_path)
+        for body in (
+            MONIT_FS_BODY + "X-OMV-Notifier: 1\n",
+            "X-OMV-Notifier: 1\n\n" + MONIT_FS_BODY,
+            "--===============1==\nContent-Type: text/plain\n\nX-OMV-Notifier: 1\n",
+        ):
+            self.deliver.reset_mock()
+            code, _, _ = self.dispatch(body)
+            self.assertEqual(code, 0)
+            self.deliver.assert_called_once()
+
+    def test_mark_matches_a_real_email_channel_message(self):
+        sent = []
+        smtp = mock.MagicMock()
+        smtp.__enter__.return_value = smtp
+        smtp.send_message.side_effect = lambda email, **kwargs: sent.append(email)
+        config = make_config()
+        rendered = render.render(message.test_notification("nas"), config)
+        with mock.patch.object(channels, "_smtp", return_value=smtp):
+            channels._email(make_channel(type="email"), rendered, config)
+        body = sent[0].as_string().split("\n\n", 1)[1]
+        self.assertTrue(cli._OWN_MESSAGE.match(body))
 
     def test_lsblk_failure_still_delivers(self):
         write_config(self.config_path)

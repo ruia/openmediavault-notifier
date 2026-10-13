@@ -11,7 +11,7 @@ from . import config as config_module
 
 LOG = logging.getLogger("omv-notifier")
 SYSLOG_SOCKET = "/dev/log"
-_OWN_MESSAGE = re.compile(r"^X-OMV-Notifier: 1$", re.MULTILINE)
+_OWN_MESSAGE = re.compile(r"\A--={15}\d+==\n(?:[^\n]+\n)*?X-OMV-Notifier: 1\n")
 
 
 def main(argv=None) -> int:
@@ -79,7 +79,7 @@ def cmd_dispatch(args) -> int:
     except OSError as exc:
         LOG.error("cannot read message file %s: %s", args.message_file, exc)
         return 0
-    if _OWN_MESSAGE.search(body):
+    if _OWN_MESSAGE.match(body):
         LOG.info("ignoring message sent by omv-notifier itself (%s)", subject)
         return 0
     recipients = tuple(
