@@ -140,6 +140,10 @@ class OtherSourcesTest(unittest.TestCase):
         self.assertEqual(classify("=?utf-8?b?Q2Fmw6kg4pyT?=", "").subject, "Café ✓")
         self.assertEqual(classify("Price =?x and =?? literal", "").subject, "Price =?x and =?? literal")
 
+    def test_encoded_line_breaks_are_flattened(self):
+        for subject in ("=?utf-8?q?a=0Ab?=", "=?utf-8?q?a=0D=0Ab?=", "a\rb", "=?utf-8?q?a=E2=80=A8b?="):
+            self.assertEqual(classify(subject, "").subject, "a b", subject)
+
     def test_malformed_encoded_words_do_not_raise(self):
         for subject in ("=?utf-8?b?!!!?=", "=?bogus?q?abc?=", "=?utf-8?b?wA==?="):
             self.assertIsInstance(classify(subject, "").subject, str)

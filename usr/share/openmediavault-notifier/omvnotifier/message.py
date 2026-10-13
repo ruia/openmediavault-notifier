@@ -89,7 +89,8 @@ def classify(subject, body, *, hostname="", sender="", recipients=(), date="") -
 
 def decode_subject(subject) -> str:
     first_line = (subject or "").split("\n", 1)[0]
-    return str(_email_policy.header_factory("subject", first_line))
+    decoded = str(_email_policy.header_factory("subject", first_line))
+    return " ".join(decoded.split())
 
 
 def test_notification(fqdn: str) -> Notification:
