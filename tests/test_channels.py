@@ -52,12 +52,28 @@ class HttpChannelTest(unittest.TestCase):
         self.assertEqual(embed["color"], channels.DISCORD_COLORS["warning"])
         self.assertIn("Disk: Media", embed["description"])
         self.assertEqual(payload["username"], "storagecenter")
+        self.assertEqual(payload["allowed_mentions"], {"parse": []})
 
     def test_discord_sender_name_override(self):
         channel = make_channel(type="discord", url="https://discord.com/api/webhooks/1/abc", sendername="NAS")
         channels.deliver(channel, rendered(), self.config)
         _, payload = self.request()
         self.assertEqual(payload["username"], "NAS")
+
+    def test_slack_escapes_control_characters(self):
+        message = Rendered(title="nas: Cron <root@nas> a && b", text="<!channel> x > y",
+                           html="", severity="info")
+        channels.deliver(make_channel(type="slack", url="https://hooks.slack.com/services/T/B/x"), message, self.config)
+        _, payload = self.request()
+        self.assertEqual(payload["text"], "*nas: Cron &lt;root@nas&gt; a &amp;&amp; b*\n&lt;!channel&gt; x &gt; y")
+
+    def test_slack_title_without_asterisks_and_clip_keeps_entities_whole(self):
+        message = Rendered(title="nas: *Cron* job", text="<" * (channels.SLACK_TEXT_LIMIT + 10),
+                           html="", severity="info")
+        channels.deliver(make_channel(type="slack", url="https://hooks.slack.com/services/T/B/x"), message, self.config)
+        _, payload = self.request()
+        self.assertTrue(payload["text"].startswith("*nas: Cron job*\n&lt;"))
+        self.assertTrue(payload["text"].endswith("&lt;…"))
 
     def test_slack_text(self):
         channels.deliver(make_channel(type="slack", url="https://hooks.slack.com/services/T/B/x"), rendered(), self.config)

@@ -47,15 +47,18 @@ def _discord(channel: Channel, rendered: Rendered, config: Config) -> None:
             "title": clip(rendered.title, DISCORD_TITLE_LIMIT),
             "description": clip(rendered.text, DISCORD_TEXT_LIMIT),
             "color": DISCORD_COLORS[rendered.severity],
-        }]
+        }],
+        "allowed_mentions": {"parse": []},
     }
     post_json(channel.url, payload)
 
 
 def _slack(channel: Channel, rendered: Rendered, config: Config) -> None:
+    title = slack_escape(rendered.title.replace("*", ""))
+    text = slack_escape(clip(rendered.text, SLACK_TEXT_LIMIT))
     payload = {
         "username": sender_name(channel, config),
-        "text": clip(f"*{rendered.title}*\n{rendered.text}", SLACK_TEXT_LIMIT),
+        "text": f"*{title}*\n{text}",
     }
     post_json(channel.url, payload)
 
@@ -162,6 +165,10 @@ def post_json(url: str, payload: dict, headers=None) -> bytes:
 
 def sender_name(channel: Channel, config: Config) -> str:
     return channel.sendername or config.hostname
+
+
+def slack_escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def clip(text: str, limit: int) -> str:
