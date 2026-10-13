@@ -224,6 +224,19 @@ class EmailChannelTest(unittest.TestCase):
         self.assertEqual(send[2], "openmediavault-notifier@storagecenter.home.arpa")
         self.assertEqual(send[1]["From"], "storagecenter <smtp.storagecenter@gmail.com>")
 
+    def test_local_server_sends_default_recipients_to_primary_only(self):
+        config = self.config(server="localhost", port=25, tls="none", authenable=False,
+                             secondaryemail="backup@example.org")
+        channels.deliver(make_channel(type="email"), rendered(), config)
+        self.assertEqual(FakeSmtp.instances[0].calls[0][3], ["admin@example.org"])
+        FakeSmtp.instances = []
+        channels.deliver(make_channel(type="email"), rendered(), self.config(secondaryemail="backup@example.org"))
+        self.assertEqual(FakeSmtp.instances[0].calls[4][3], ["admin@example.org", "backup@example.org"])
+        FakeSmtp.instances = []
+        channel = make_channel(type="email", recipients="ops@example.org, backup@example.org")
+        channels.deliver(channel, rendered(), config)
+        self.assertEqual(FakeSmtp.instances[0].calls[0][3], ["ops@example.org", "backup@example.org"])
+
     def test_disabled_email_notifications(self):
         with self.assertRaisesRegex(channels.DeliveryError, "disabled"):
             channels.deliver(make_channel(type="email"), rendered(), self.config(enable=False))

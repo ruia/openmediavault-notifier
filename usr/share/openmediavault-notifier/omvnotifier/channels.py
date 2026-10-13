@@ -97,7 +97,7 @@ def _email(channel: Channel, rendered: Rendered, config: Config) -> None:
     settings = config.email
     if not settings.enable:
         raise DeliveryError("email notifications are disabled in openmediavault")
-    recipients = channel.recipients or settings.default_recipients
+    recipients = email_recipients(channel, settings)
     if not recipients:
         raise DeliveryError("no recipients configured")
     if not settings.sender:
@@ -124,6 +124,15 @@ def _email(channel: Channel, rendered: Rendered, config: Config) -> None:
         raise DeliveryError(
             f"SMTP delivery via {settings.server}:{settings.port} failed: {exc}"
         ) from exc
+
+
+def email_recipients(channel: Channel, settings: EmailSettings) -> tuple:
+    if channel.recipients:
+        return channel.recipients
+    if settings.is_local_server and settings.primaryemail:
+        # openmediavault's Postfix copies mail for the primary address to the secondary one.
+        return (settings.primaryemail,)
+    return settings.default_recipients
 
 
 def _smtp_connect(settings: EmailSettings):
