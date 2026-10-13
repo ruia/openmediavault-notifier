@@ -86,3 +86,33 @@ configure_notifier_config:
     - show_changes: False
     - require:
       - file: create_notifier_config_dir
+
+{% set transport_lines = ['# Managed by openmediavault-notifier.'] %}
+{% if settings.enable | to_bool and settings.replaceemail | to_bool %}
+{% for address in [email.primaryemail, email.secondaryemail] %}
+{% if address | length > 0 %}
+{% set _ = transport_lines.append(address ~ ' discard:') %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+configure_notifier_postfix_transport:
+  file.managed:
+    - name: /etc/postfix/notifier_transport
+    - contents: {{ transport_lines | json }}
+    - user: root
+    - group: root
+    - mode: '0600'
+
+run_postmap_notifier_transport:
+  cmd.run:
+    - name: postmap /etc/postfix/notifier_transport
+    - onchanges:
+      - file: configure_notifier_postfix_transport
+
+reload_postfix_notifier_transport:
+  cmd.run:
+    - name: postfix reload
+    - onlyif: systemctl is-active --quiet postfix
+    - onchanges:
+      - cmd: run_postmap_notifier_transport

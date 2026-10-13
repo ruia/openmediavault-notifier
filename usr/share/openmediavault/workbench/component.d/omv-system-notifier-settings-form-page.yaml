@@ -18,7 +18,7 @@ data:
       - type: checkbox
         name: replaceemail
         label: _("Replace openmediavault emails")
-        hint: _("Discard the original emails sent by openmediavault so that only the channels configured here deliver notifications. Add an 'Email' channel to keep receiving improved emails. Requires an external SMTP server in the notification settings.")
+        hint: _("Discard the emails openmediavault sends to the primary and secondary addresses of the notification settings, so these notifications are delivered only by the channels configured here. Mail to other addresses, for example to users, is still delivered. Add an 'Email' channel to keep receiving improved emails. Requires an external SMTP server in the notification settings.")
         value: false
       - type: textInput
         name: uiurl

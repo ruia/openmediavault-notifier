@@ -87,7 +87,6 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         $this->validateMethodParams($params, "rpc.notifier.setsettings");
         $db = \OMV\Config\Database::getInstance();
         $object = $db->get("conf.service.notifier");
-        $replaceEmailChanged = $object->get("replaceemail") !== $params['replaceemail'];
         if ($params['replaceemail'] && $this->hasChannelOfType($db, "email")) {
             $this->assertExternalSmtpServer($db);
         }
@@ -97,9 +96,6 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
             "uiurl" => $params['uiurl'],
         ]);
         $db->set($object);
-        if ($replaceEmailChanged) {
-            $this->applyEmailTransport($params['replaceemail']);
-        }
         $object->remove("channels");
         return $object->getAssoc();
     }
@@ -286,23 +282,6 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
                 "otherwise the improved emails would be discarded as well."
             );
         }
-    }
-
-    private function applyEmailTransport(bool $replace)
-    {
-        $cmdArgs = $replace
-            ? ["set", "--", "OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT", "discard"]
-            : ["unset", "OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT"];
-        $cmd = new \OMV\System\Process("omv-env", $cmdArgs);
-        $cmd->setRedirect2to1();
-        $cmd->execute();
-        $cmd = new \OMV\System\Process("omv-salt", [
-            "stage", "run", "--no-color", "--quiet", "prepare"
-        ]);
-        $cmd->setRedirect2to1();
-        $cmd->execute();
-        $moduleMngr = \OMV\Engine\Module\Manager::getInstance();
-        $moduleMngr->getModule("postfix")->setDirty();
     }
 
     private function loadEventClasses(): array

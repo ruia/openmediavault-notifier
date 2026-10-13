@@ -87,9 +87,12 @@ After saving, apply the pending configuration, then use the test button.
 ### Settings
 
 - Enabled: global switch.
-- Replace openmediavault emails: sets `OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT=discard`
-  so the stock emails are dropped. Keep an Email channel to receive the
-  improved ones. Requires an external SMTP server in the notification
+- Replace openmediavault emails: discards the stock emails to the primary
+  and secondary addresses of the notification settings through the Postfix
+  transport map `/etc/postfix/notifier_transport`, which the plugin adds to
+  `OMV_POSTFIX_MAIN_TRANSPORT_MAPS` on install. Mail to other addresses, for
+  example to users, is still delivered. Keep an Email channel to receive the
+  improved emails. Requires an external SMTP server in the notification
   settings, mails sent through a local Postfix would be discarded too.
 - Web interface URL: optional link added to notifications.
 
