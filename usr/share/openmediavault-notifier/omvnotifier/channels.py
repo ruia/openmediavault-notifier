@@ -108,6 +108,7 @@ def _email(channel: Channel, rendered: Rendered, config: Config) -> None:
     message["X-OMV-Notifier"] = "1"
     message.set_content(rendered.text)
     message.add_alternative(rendered.html, subtype="html")
+    message.get_payload()[0]["X-OMV-Notifier"] = "1"
     envelope_sender = (
         f"{LOCAL_ENVELOPE_USER}@{config.fqdn}" if settings.is_local_server else settings.sender
     )

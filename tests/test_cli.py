@@ -102,6 +102,15 @@ class DispatchTest(CliTestCase):
         self.assertEqual(code, 0)
         self.assertIn("unhandled error in dispatch", err)
 
+    def test_ignores_own_email_copy(self):
+        write_config(self.config_path)
+        body = "--===============1==\nContent-Type: text/plain; charset=\"utf-8\"\n" \
+               "Content-Transfer-Encoding: 7bit\nX-OMV-Notifier: 1\n\nstoragecenter: Disk\n"
+        code, _, err = self.dispatch(body)
+        self.assertEqual(code, 0)
+        self.deliver.assert_not_called()
+        self.assertIn("ignoring message sent by omv-notifier itself", err)
+
     def test_lsblk_failure_still_delivers(self):
         write_config(self.config_path)
         enrich.list_block_devices.side_effect = enrich.EnrichError("no lsblk")

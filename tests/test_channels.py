@@ -178,6 +178,7 @@ class EmailChannelTest(unittest.TestCase):
         self.assertEqual(message["Subject"], "nas: Disk Media is running out of space")
         self.assertEqual(message["X-OMV-Notifier"], "1")
         self.assertTrue(message.is_multipart())
+        self.assertEqual(message.get_payload()[0]["X-OMV-Notifier"], "1")
         self.assertEqual(message.get_body(("html",)).get_content_type(), "text/html")
 
     def test_explicit_recipients_and_ssl(self):

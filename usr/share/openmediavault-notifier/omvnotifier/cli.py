@@ -3,6 +3,7 @@ import json
 import logging
 import logging.handlers
 import os
+import re
 import sys
 
 from . import channels, enrich, message, render
@@ -10,6 +11,7 @@ from . import config as config_module
 
 LOG = logging.getLogger("omv-notifier")
 SYSLOG_SOCKET = "/dev/log"
+_OWN_MESSAGE = re.compile(r"^X-OMV-Notifier: 1$", re.MULTILINE)
 
 
 def main(argv=None) -> int:
@@ -76,6 +78,9 @@ def cmd_dispatch(args) -> int:
             body = handle.read()
     except OSError as exc:
         LOG.error("cannot read message file %s: %s", args.message_file, exc)
+        return 0
+    if _OWN_MESSAGE.search(body):
+        LOG.info("ignoring message sent by omv-notifier itself (%s)", subject)
         return 0
     recipients = tuple(
         part.strip() for item in args.recipient for part in item.split(",") if part.strip()
