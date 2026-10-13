@@ -120,6 +120,10 @@ def cmd_test(args) -> int:
     if channel is None:
         print(f"channel '{args.uuid}' not found in the deployed configuration", file=sys.stderr)
         return 1
+    if not channel.enable:
+        print(f"channel '{channel.name}' is disabled, enable it and apply the configuration first",
+              file=sys.stderr)
+        return 1
     rendered = render.render(message.test_notification(config.fqdn), config)
     try:
         channels.deliver(channel, rendered, config)

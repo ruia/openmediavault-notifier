@@ -175,6 +175,13 @@ class TestCommandTest(CliTestCase):
         self.assertEqual(code, 1)
         self.assertIn("not found", err)
 
+    def test_disabled_channel_is_refused(self):
+        write_config(self.config_path, channels=[raw_channel(uuid="3", name="Off", enable=False)])
+        code, _, err = self.run_cli("test", "3")
+        self.assertEqual(code, 1)
+        self.assertIn("channel 'Off' is disabled", err)
+        self.deliver.assert_not_called()
+
     def test_delivery_failure_is_reported(self):
         write_config(self.config_path)
         self.deliver.side_effect = channels.DeliveryError("HTTP 404 from ntfy.sh: not found")

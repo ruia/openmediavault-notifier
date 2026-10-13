@@ -189,8 +189,9 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         if ($this->isModuleDirty("notifier")) {
             throw new \OMV\Config\ConfigDirtyException();
         }
-        $cmd = new \OMV\System\Process("omv-notifier", [
-            "test", escapeshellarg($params['uuid'])
+        $cmd = new \OMV\System\Process("runuser", [
+            "-u", "openmediavault-notify", "--",
+            "/usr/sbin/omv-notifier", "test", escapeshellarg($params['uuid'])
         ]);
         $cmd->setRedirect2to1();
         $cmd->execute($output);
