@@ -166,7 +166,7 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         $object->setAssoc(array_intersect_key($params, array_flip(self::CHANNEL_PROPERTIES)));
         $db->assertIsUnique($object, "name", sprintf(
             gettext("A channel named '%s' already exists."),
-            $params['name']
+            str_replace("%", "%%", $params['name'])
         ));
         $db->set($object);
         return $this->channelToAssoc($object);
@@ -310,7 +310,14 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         $cmd = new \OMV\System\Process("omv-notifier", ["events"]);
         $cmd->setRedirect2to1();
         $cmd->execute($output);
-        return json_decode_safe(implode("", $output), true);
+        $classes = json_decode_safe(implode("", $output), true);
+        if (!is_array($classes)) {
+            throw new \OMV\Exception(
+                "Failed to parse the output of 'omv-notifier events': %s",
+                json_last_error_msg()
+            );
+        }
+        return $classes;
     }
 
     private function splitList(string $value): array
