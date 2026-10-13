@@ -60,9 +60,9 @@ removes the configuration.
 
 ## Configuration
 
-System > Notification > Channels.
+System > Notification > Notifier.
 
-### Channels tab
+### Channels
 
 Create one channel per destination.
 
@@ -84,7 +84,7 @@ Common fields:
 
 After saving, apply the pending configuration, then use the test button.
 
-### Settings tab
+### Settings
 
 - Enabled: global switch.
 - Replace openmediavault emails: sets `OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT=discard`

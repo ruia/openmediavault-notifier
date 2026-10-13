@@ -2,5 +2,5 @@ version: "1.0"
 type: route
 data:
   url: "/system/notification/notifier"
-  title: _("Channels")
-  component: omv-system-notifier-tabs-page
+  title: _("Notifier")
+  component: omv-system-notifier-navigation-page

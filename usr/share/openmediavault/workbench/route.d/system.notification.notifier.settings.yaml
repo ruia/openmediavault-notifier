@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/system/notification/notifier/settings"
+  title: _("Settings")
+  editing: true
+  notificationTitle: _("Updated notifier settings.")
+  component: omv-system-notifier-settings-form-page

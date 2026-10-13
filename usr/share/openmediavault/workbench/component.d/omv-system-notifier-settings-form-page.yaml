@@ -1,0 +1,37 @@
+version: "1.0"
+type: component
+data:
+  name: omv-system-notifier-settings-form-page
+  type: formPage
+  config:
+    request:
+      service: Notifier
+      get:
+        method: getSettings
+      post:
+        method: setSettings
+    fields:
+      - type: checkbox
+        name: enable
+        label: _("Enabled")
+        value: true
+      - type: checkbox
+        name: replaceemail
+        label: _("Replace openmediavault emails")
+        hint: _("Discard the original emails sent by openmediavault so that only the channels configured here deliver notifications. Add an 'Email' channel to keep receiving improved emails. Requires an external SMTP server in the notification settings.")
+        value: false
+      - type: textInput
+        name: uiurl
+        label: _("Web interface URL")
+        hint: _("Optional URL of this web interface, added as a link to notifications, e.g. https://nas.local/")
+        value: ""
+        validators:
+          pattern:
+            pattern: "^(https?://.+)?$"
+            errorData: _("The URL must start with http:// or https://.")
+    buttons:
+      - template: submit
+      - template: cancel
+        execute:
+          type: url
+          url: "/system/notification/notifier"

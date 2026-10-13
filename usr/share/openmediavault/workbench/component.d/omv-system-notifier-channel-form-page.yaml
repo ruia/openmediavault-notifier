@@ -196,8 +196,8 @@ data:
       - template: submit
         execute:
           type: url
-          url: "/system/notification/notifier"
+          url: "/system/notification/notifier/channels"
       - template: cancel
         execute:
           type: url
-          url: "/system/notification/notifier"
+          url: "/system/notification/notifier/channels"
