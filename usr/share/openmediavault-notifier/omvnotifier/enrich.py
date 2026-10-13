@@ -122,7 +122,8 @@ def describe_disk(config: Config, devices: list, path: str) -> dict:
     })
 
 
-def enrich(notification: Notification, config: Config, devices: list) -> Notification:
+def enrich(notification: Notification, config: Config, devices: list,
+           realpath=os.path.realpath) -> Notification:
     extra = {}
     if notification.event == "monit-filesystem":
         mountpoint = mountpoint_for_service(config, notification.fields.get("service", ""))
@@ -131,7 +132,7 @@ def enrich(notification: Notification, config: Config, devices: list) -> Notific
     elif notification.event == "smart":
         path = notification.fields.get("device")
         if path:
-            extra = describe_disk(config, devices, path)
+            extra = describe_disk(config, devices, realpath(path))
     if not extra:
         return notification
     return replace(notification, fields={**notification.fields, **extra})

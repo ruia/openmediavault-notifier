@@ -39,7 +39,7 @@ _SMART_SUBJECT = re.compile(
     r"^SMART (?:error|warning|notice) \((?P<type>[^)]+)\) detected on host:\s*(?P<host>\S+)",
     re.IGNORECASE,
 )
-_SMART_DEVICE = re.compile(r"^Device:\s*(?P<device>/dev/\S+)", re.MULTILINE)
+_SMART_DEVICE = re.compile(r"^Device:\s*(?P<device>/dev/[^\s,]+)", re.MULTILINE)
 _SMART_INFO = re.compile(r"^Device info:\s*\n(?P<info>.+)$", re.MULTILINE)
 _MDADM_SUBJECT = re.compile(r"^(?P<event>[A-Za-z]+) event on (?P<device>/dev/[^:\s]+):(?P<host>\S+)$")
 _UPDATES_SUBJECT = re.compile(r"^(?:(?P<count>\d+) package update\(s\) available|No package updates available)$")

@@ -70,6 +70,15 @@ class OtherSourcesTest(unittest.TestCase):
         self.assertEqual(notification.fields["type"], "CurrentPendingSector")
         self.assertTrue(notification.fields["deviceinfo"].startswith("WDC WD40EFRX"))
 
+    def test_smart_device_by_id_and_nvme(self):
+        by_id = "/dev/disk/by-id/ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1234567"
+        body = f"Device: {by_id} [SAT], 8 Currently unreadable (pending) sectors\n"
+        notification = classify("SMART error (CurrentPendingSector) detected on host: nas", body)
+        self.assertEqual(notification.fields["device"], by_id)
+        body = "Device: /dev/disk/by-id/nvme-Samsung_SSD_980_S123, Critical Warning (0x04): Reliability\n"
+        notification = classify("SMART error (Health) detected on host: nas", body)
+        self.assertEqual(notification.fields["device"], "/dev/disk/by-id/nvme-Samsung_SSD_980_S123")
+
     def test_smart_temperature_is_warning(self):
         notification = classify("SMART error (Temperature) detected on host: nas", "")
         self.assertEqual(notification.severity, "warning")
