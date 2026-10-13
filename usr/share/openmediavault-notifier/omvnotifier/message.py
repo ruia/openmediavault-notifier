@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, field
+from email.policy import default as _email_policy
 
 EVENT_CLASSES = (
     ("monit-filesystem", "Monitoring: file systems"),
@@ -64,7 +65,7 @@ _MDADM_RECOVERY = {"rebuildfinished", "spareactive"}
 
 
 def classify(subject, body, *, hostname="", sender="", recipients=(), date="") -> Notification:
-    clean_subject = (subject or "").strip()
+    clean_subject = decode_subject(subject).strip()
     body = body or ""
     for matcher in _MATCHERS:
         result = matcher(clean_subject, body, hostname)
@@ -84,6 +85,11 @@ def classify(subject, body, *, hostname="", sender="", recipients=(), date="") -
         recovery=recovery,
         fields=fields,
     )
+
+
+def decode_subject(subject) -> str:
+    first_line = (subject or "").split("\n", 1)[0]
+    return str(_email_policy.header_factory("subject", first_line))
 
 
 def test_notification(fqdn: str) -> Notification:

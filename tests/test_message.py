@@ -118,6 +118,23 @@ class OtherSourcesTest(unittest.TestCase):
     def test_empty_subject(self):
         self.assertEqual(classify("", "").subject, "")
 
+    def test_subject_keeps_first_line_only(self):
+        notification = classify("A SSL certificate expires in 5 days\nCN = nas", "")
+        self.assertEqual(notification.subject, "A SSL certificate expires in 5 days")
+        self.assertEqual(notification.severity, "warning")
+
+    def test_subject_rfc2047_decoding(self):
+        self.assertEqual(
+            classify("=?UTF-8?Q?apt-listchanges=3A_news_for_nas?=", "").subject,
+            "apt-listchanges: news for nas",
+        )
+        self.assertEqual(classify("=?utf-8?b?Q2Fmw6kg4pyT?=", "").subject, "Café ✓")
+        self.assertEqual(classify("Price =?x and =?? literal", "").subject, "Price =?x and =?? literal")
+
+    def test_malformed_encoded_words_do_not_raise(self):
+        for subject in ("=?utf-8?b?!!!?=", "=?bogus?q?abc?=", "=?utf-8?b?wA==?="):
+            self.assertIsInstance(classify(subject, "").subject, str)
+
 
 class EventClassesTest(unittest.TestCase):
     def test_classes_are_unique_and_titled(self):
