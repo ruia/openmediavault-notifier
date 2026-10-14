@@ -52,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           apt-get install -y --no-install-recommends gh
-          notes="$(dpkg-parsechangelog --show-field Changes | tail -n +3)"
+          notes="$(dpkg-parsechangelog --show-field Changes | tail -n +4)"
           if gh release view "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release upload "${GITHUB_REF_NAME}" dist/*.deb --clobber -R "${GITHUB_REPOSITORY}"
           else
