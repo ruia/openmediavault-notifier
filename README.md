@@ -55,6 +55,9 @@ Then hard-reload the web interface (Ctrl+Shift+R). The web interface caches
 its route table at start, a plugin page opened before a reload shows the
 "Software Failure" 404 page.
 
+System > Plugins lists the installed version. Its repository shows `/now`,
+apt's name for packages installed from a file.
+
 Upgrades use the same command with the newer file. Uninstalling from
 System > Plugins or with `apt purge` restores stock email delivery and
 removes the configuration.
@@ -159,7 +162,8 @@ openmediavault 8. Every release adds a changelog entry with a higher version,
 apt only upgrades when the version increases. Configuration migrations in
 `confdb/migrations.d/` are named after the version that introduces them and
 run once when upgrading from an older version. Tagging `v<version>` on GitHub
-builds the package and attaches it to a release.
+builds the package and attaches it to a release, with the changelog entry as
+the release notes.
 
 ### Roadmap
 
