@@ -9,7 +9,7 @@ Homepage: https://github.com/ruia/openmediavault-notifier
 
 Package: openmediavault-notifier
 Architecture: all
-Depends: openmediavault (>= 8),
+Depends: openmediavault (>= 8.0.5-2),
          python3,
          util-linux,
          ${misc:Depends}

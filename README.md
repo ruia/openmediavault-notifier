@@ -35,7 +35,8 @@ Details: space usage test succeeded [current space usage = 92.4%]
 
 ## Requirements
 
-- openmediavault 8.x.
+- openmediavault 8.0.5-2 or later. Older 8.x releases drop all outgoing mail
+  once email notifications are enabled after the installation.
 - Email notifications enabled in System > Notification > Settings. The
   notification pipeline that feeds this plugin only runs when the mail
   system is active. You can keep an external SMTP server configured and still
@@ -47,7 +48,7 @@ Download the `.deb` from the [releases](https://github.com/ruia/openmediavault-n
 page, copy it to the server and install it:
 
 ```
-apt install ./openmediavault-notifier_8.0.2_all.deb
+apt install ./openmediavault-notifier_8.1.0_all.deb
 ```
 
 Then hard-reload the web interface (Ctrl+Shift+R). The web interface caches
