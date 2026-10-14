@@ -3,6 +3,6 @@ type: navigation-item
 data:
   path: "system.notification.notifier"
   position: 30
-  text: _("Channels")
+  text: _("Notifier")
   icon: "mdi:bell-ring"
   url: "/system/notification/notifier"

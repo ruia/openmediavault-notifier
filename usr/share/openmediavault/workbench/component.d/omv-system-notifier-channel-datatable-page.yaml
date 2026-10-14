@@ -1,0 +1,74 @@
+version: "1.0"
+type: component
+data:
+  name: omv-system-notifier-channel-datatable-page
+  type: datatablePage
+  config:
+    autoReload: false
+    stateId: 3f1c9d5a-8a1e-4c6b-9c2e-5b7a1d2e4f60
+    sorters:
+      - dir: asc
+        prop: name
+    store:
+      proxy:
+        service: Notifier
+        get:
+          method: getChannelList
+    rowEnumFmt: "{{ name }}"
+    columns:
+      - name: _("Enabled")
+        prop: enable
+        flexGrow: 1
+        sortable: true
+        cellTemplateName: checkIcon
+      - name: _("Name")
+        prop: name
+        flexGrow: 2
+        sortable: true
+      - name: _("Type")
+        prop: typetext
+        flexGrow: 1
+        sortable: true
+      - name: _("Events")
+        prop: events
+        flexGrow: 3
+        cellTemplateName: chip
+        cellTemplateConfig:
+          separator: ','
+      - name: _("Skip recovery")
+        prop: skiprecovery
+        flexGrow: 1
+        sortable: true
+        cellTemplateName: checkIcon
+    actions:
+      - template: create
+        execute:
+          type: url
+          url: "/system/notification/notifier/channels/create"
+      - template: edit
+        execute:
+          type: url
+          url: "/system/notification/notifier/channels/edit/{{ _selected[0].uuid }}"
+      - type: iconButton
+        icon: "mdi:send"
+        tooltip: _("Send test notification")
+        enabledConstraints:
+          minSelected: 1
+          maxSelected: 1
+        execute:
+          type: request
+          request:
+            service: Notifier
+            method: testChannel
+            params:
+              uuid: "{{ _selected[0].uuid }}"
+            progressMessage: _("Please wait, sending a test notification ...")
+            successNotification: _("The test notification has been sent.")
+      - template: delete
+        execute:
+          type: request
+          request:
+            service: Notifier
+            method: deleteChannel
+            params:
+              uuid: "{{ uuid }}"

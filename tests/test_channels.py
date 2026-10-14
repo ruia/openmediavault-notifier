@@ -52,12 +52,28 @@ class HttpChannelTest(unittest.TestCase):
         self.assertEqual(embed["color"], channels.DISCORD_COLORS["warning"])
         self.assertIn("Disk: Media", embed["description"])
         self.assertEqual(payload["username"], "storagecenter")
+        self.assertEqual(payload["allowed_mentions"], {"parse": []})
 
     def test_discord_sender_name_override(self):
         channel = make_channel(type="discord", url="https://discord.com/api/webhooks/1/abc", sendername="NAS")
         channels.deliver(channel, rendered(), self.config)
         _, payload = self.request()
         self.assertEqual(payload["username"], "NAS")
+
+    def test_slack_escapes_control_characters(self):
+        message = Rendered(title="nas: Cron <root@nas> a && b", text="<!channel> x > y",
+                           html="", severity="info")
+        channels.deliver(make_channel(type="slack", url="https://hooks.slack.com/services/T/B/x"), message, self.config)
+        _, payload = self.request()
+        self.assertEqual(payload["text"], "*nas: Cron &lt;root@nas&gt; a &amp;&amp; b*\n&lt;!channel&gt; x &gt; y")
+
+    def test_slack_title_without_asterisks_and_clip_keeps_entities_whole(self):
+        message = Rendered(title="nas: *Cron* job", text="<" * (channels.SLACK_TEXT_LIMIT + 10),
+                           html="", severity="info")
+        channels.deliver(make_channel(type="slack", url="https://hooks.slack.com/services/T/B/x"), message, self.config)
+        _, payload = self.request()
+        self.assertTrue(payload["text"].startswith("*nas: Cron job*\n&lt;"))
+        self.assertTrue(payload["text"].endswith("&lt;…"))
 
     def test_slack_text(self):
         channels.deliver(make_channel(type="slack", url="https://hooks.slack.com/services/T/B/x"), rendered(), self.config)
@@ -178,6 +194,7 @@ class EmailChannelTest(unittest.TestCase):
         self.assertEqual(message["Subject"], "nas: Disk Media is running out of space")
         self.assertEqual(message["X-OMV-Notifier"], "1")
         self.assertTrue(message.is_multipart())
+        self.assertEqual(message.get_payload()[0]["X-OMV-Notifier"], "1")
         self.assertEqual(message.get_body(("html",)).get_content_type(), "text/html")
 
     def test_explicit_recipients_and_ssl(self):
@@ -206,6 +223,19 @@ class EmailChannelTest(unittest.TestCase):
         send = FakeSmtp.instances[0].calls[0]
         self.assertEqual(send[2], "openmediavault-notifier@storagecenter.home.arpa")
         self.assertEqual(send[1]["From"], "storagecenter <smtp.storagecenter@gmail.com>")
+
+    def test_local_server_sends_default_recipients_to_primary_only(self):
+        config = self.config(server="localhost", port=25, tls="none", authenable=False,
+                             secondaryemail="backup@example.org")
+        channels.deliver(make_channel(type="email"), rendered(), config)
+        self.assertEqual(FakeSmtp.instances[0].calls[0][3], ["admin@example.org"])
+        FakeSmtp.instances = []
+        channels.deliver(make_channel(type="email"), rendered(), self.config(secondaryemail="backup@example.org"))
+        self.assertEqual(FakeSmtp.instances[0].calls[4][3], ["admin@example.org", "backup@example.org"])
+        FakeSmtp.instances = []
+        channel = make_channel(type="email", recipients="ops@example.org, backup@example.org")
+        channels.deliver(channel, rendered(), config)
+        self.assertEqual(FakeSmtp.instances[0].calls[0][3], ["ops@example.org", "backup@example.org"])
 
     def test_disabled_email_notifications(self):
         with self.assertRaisesRegex(channels.DeliveryError, "disabled"):

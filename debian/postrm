@@ -15,6 +15,9 @@ case "$1" in
 		echo "Cleaning up configuration database ..."
 		omv_config_delete "/config/services/notifier"
 		rm -rf /etc/openmediavault-notifier
+		if ! postconf -h transport_maps | grep -q "/etc/postfix/notifier_transport"; then
+			rm -f /etc/postfix/notifier_transport /etc/postfix/notifier_transport.db
+		fi
 	;;
 
 	remove)

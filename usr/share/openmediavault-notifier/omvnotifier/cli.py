@@ -3,6 +3,7 @@ import json
 import logging
 import logging.handlers
 import os
+import re
 import sys
 
 from . import channels, enrich, message, render
@@ -10,6 +11,7 @@ from . import config as config_module
 
 LOG = logging.getLogger("omv-notifier")
 SYSLOG_SOCKET = "/dev/log"
+_OWN_MESSAGE = re.compile(r"\A--={15}\d+==\n(?:[^\n]+\n)*?X-OMV-Notifier: 1\n")
 
 
 def main(argv=None) -> int:
@@ -77,6 +79,9 @@ def cmd_dispatch(args) -> int:
     except OSError as exc:
         LOG.error("cannot read message file %s: %s", args.message_file, exc)
         return 0
+    if _OWN_MESSAGE.match(body):
+        LOG.info("ignoring message sent by omv-notifier itself (%s)", subject)
+        return 0
     recipients = tuple(
         part.strip() for item in args.recipient for part in item.split(",") if part.strip()
     )
@@ -98,6 +103,8 @@ def cmd_dispatch(args) -> int:
             channels.deliver(channel, rendered, config)
         except channels.DeliveryError as exc:
             LOG.error("channel '%s' (%s): %s", channel.name, channel.type, exc)
+        except Exception:  # noqa: BLE001 - one broken channel must not keep the alert from the others
+            LOG.exception("channel '%s' (%s): unexpected error", channel.name, channel.type)
         else:
             LOG.info("delivered '%s' event to channel '%s'", notification.event, channel.name)
     return 0
@@ -112,6 +119,10 @@ def cmd_test(args) -> int:
     channel = config.channel(args.uuid)
     if channel is None:
         print(f"channel '{args.uuid}' not found in the deployed configuration", file=sys.stderr)
+        return 1
+    if not channel.enable:
+        print(f"channel '{channel.name}' is disabled, enable it and apply the configuration first",
+              file=sys.stderr)
         return 1
     rendered = render.render(message.test_notification(config.fqdn), config)
     try:

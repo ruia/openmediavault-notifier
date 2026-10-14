@@ -25,6 +25,9 @@
   'skiprecovery': channel.skiprecovery | to_bool}) %}
 {% endfor %}
 
+{% set email_channel_enabled = channel_list | selectattr('type', 'equalto', 'email')
+  | selectattr('enable') | list | length > 0 %}
+
 {% set mountpoint_list = [] %}
 {% for mountpoint in mountpoints %}
 {% set _ = mountpoint_list.append({
@@ -58,7 +61,7 @@
     'sender': email.sender,
     'authenable': email.authentication.enable | to_bool,
     'username': email.authentication.username,
-    'password': email.authentication.password,
+    'password': email.authentication.password if email_channel_enabled else '',
     'primaryemail': email.primaryemail,
     'secondaryemail': email.secondaryemail},
   'channels': channel_list,
@@ -83,3 +86,33 @@ configure_notifier_config:
     - show_changes: False
     - require:
       - file: create_notifier_config_dir
+
+{% set transport_lines = ['# Managed by openmediavault-notifier.'] %}
+{% if settings.enable | to_bool and settings.replaceemail | to_bool %}
+{% for address in [email.primaryemail, email.secondaryemail] %}
+{% if address | length > 0 %}
+{% set _ = transport_lines.append(address ~ ' discard:') %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+configure_notifier_postfix_transport:
+  file.managed:
+    - name: /etc/postfix/notifier_transport
+    - contents: {{ transport_lines | json }}
+    - user: root
+    - group: root
+    - mode: '0600'
+
+run_postmap_notifier_transport:
+  cmd.run:
+    - name: postmap /etc/postfix/notifier_transport
+    - onchanges:
+      - file: configure_notifier_postfix_transport
+
+reload_postfix_notifier_transport:
+  cmd.run:
+    - name: postfix reload
+    - onlyif: systemctl is-active --quiet postfix
+    - onchanges:
+      - cmd: run_postmap_notifier_transport

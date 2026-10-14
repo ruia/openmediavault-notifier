@@ -1,7 +1,7 @@
 version: "1.0"
 type: route
 data:
-  url: "/system/notification/notifier/edit/:uuid"
+  url: "/system/notification/notifier/channels/edit/:uuid"
   title: _("Edit")
   editing: true
   notificationTitle: _("Updated notification channel.")

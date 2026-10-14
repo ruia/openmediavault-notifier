@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, field
+from email.policy import default as _email_policy
 
 EVENT_CLASSES = (
     ("monit-filesystem", "Monitoring: file systems"),
@@ -30,7 +31,6 @@ class Notification:
     fields: dict = field(default_factory=dict)
 
 
-_HOST_PREFIX = re.compile(r"^\[[^\]]*\]\s*")
 _MONIT_SUBJECT = re.compile(r"^Monitoring (?P<action>\S+) -- (?P<event>.+) (?P<service>\S+)$")
 _MONIT_FIELD = re.compile(r"^(Host|Date|Service|Event|Description):[ \t]*(.*)$", re.MULTILINE)
 _MONIT_ACTION = re.compile(r"^This triggered the monitoring system to:[ \t]*(.*)$", re.MULTILINE)
@@ -39,11 +39,21 @@ _SMART_SUBJECT = re.compile(
     r"^SMART (?:error|warning|notice) \((?P<type>[^)]+)\) detected on host:\s*(?P<host>\S+)",
     re.IGNORECASE,
 )
-_SMART_DEVICE = re.compile(r"^Device:\s*(?P<device>/dev/\S+)", re.MULTILINE)
+_SMART_DEVICE = re.compile(r"^Device:\s*(?P<device>/dev/[^\s,]+)", re.MULTILINE)
 _SMART_INFO = re.compile(r"^Device info:\s*\n(?P<info>.+)$", re.MULTILINE)
 _MDADM_SUBJECT = re.compile(r"^(?P<event>[A-Za-z]+) event on (?P<device>/dev/[^:\s]+):(?P<host>\S+)$")
 _UPDATES_SUBJECT = re.compile(r"^(?:(?P<count>\d+) package update\(s\) available|No package updates available)$")
 _CRON_SUBJECT = re.compile(r"^Cron(?:\s*-\s*(?P<name>.+)|\s*<.*)?$")
+_CLAMAV_SCAN_SUBJECT = re.compile(r"^ClamAV(?: - (?P<name>.+))?$")
+_USBBACKUP_SUBJECT = re.compile(
+    r"^USB Backup \(shared folder=(?P<folder>.*), device=(?P<device>[^)]*)\)(?: - (?P<name>.+))?$"
+)
+_LISTCHANGES_SUBJECT = re.compile(r"^apt-listchanges: (?:news|changelogs) for \S+$")
+_UNATTENDED_SUBJECT = re.compile(
+    r"^(?P<flags>(?:\[[^\]]*\])*)\s*unattended-upgrades result for (?P<host>\S+): (?P<result>SUCCESS|FAILURE)$"
+)
+_IO_ERROR_SUBJECT = re.compile(r"^I/O error detected on device '(?P<device>[^']+)'$")
+_VIRUS_SUBJECT = re.compile(r"^VIRUS ALERT: ")
 _AUTH_SUBJECT = re.compile(
     r"locked users|log ?in|sudo|unauthori[sz]ed|two.factor|\b2fa\b|authentication|one.time password",
     re.IGNORECASE,
@@ -52,10 +62,15 @@ _SYSTEM_SUBJECTS = (
     (re.compile(r"errors were detected", re.IGNORECASE), "critical"),
     (re.compile(r"certificate expires", re.IGNORECASE), "warning"),
     (re.compile(r"reboot required", re.IGNORECASE), "warning"),
-    (re.compile(r"\bUPS\b"), "warning"),
     (re.compile(r"pending configuration", re.IGNORECASE), "info"),
     (re.compile(r"scrub report", re.IGNORECASE), "info"),
     (re.compile(r"test message from", re.IGNORECASE), "info"),
+)
+_UPS_SUBJECT = re.compile(r"\bUPS\b")
+_UPS_RECOVERY = re.compile(r"running on line power|communications with the UPS .* are established", re.IGNORECASE)
+_UPS_CRITICAL = re.compile(
+    r"low battery|forced shutdown|shutdown imminent|being shutdown|shutdown proceeding|shutdown impossible",
+    re.IGNORECASE,
 )
 _SMART_WARNING_TYPES = {"temperature", "temperaturechanged"}
 _SMART_INFO_TYPES = {"emailtest"}
@@ -65,7 +80,7 @@ _MDADM_RECOVERY = {"rebuildfinished", "spareactive"}
 
 
 def classify(subject, body, *, hostname="", sender="", recipients=(), date="") -> Notification:
-    clean_subject = _HOST_PREFIX.sub("", subject or "").strip()
+    clean_subject = decode_subject(subject).strip()
     body = body or ""
     for matcher in _MATCHERS:
         result = matcher(clean_subject, body, hostname)
@@ -85,6 +100,12 @@ def classify(subject, body, *, hostname="", sender="", recipients=(), date="") -
         recovery=recovery,
         fields=fields,
     )
+
+
+def decode_subject(subject) -> str:
+    first_line = (subject or "").split("\n", 1)[0]
+    decoded = str(_email_policy.header_factory("subject", first_line))
+    return " ".join(decoded.split())
 
 
 def test_notification(fqdn: str) -> Notification:
@@ -111,8 +132,10 @@ def _classify_monit(subject, body, hostname):
     recovery = bool(_MONIT_RECOVERY.search(event_name))
     if service == "rootfs" or service.startswith(("filesystem", "mountpoint")):
         event, severity = "monit-filesystem", "info" if recovery else "warning"
-    elif event_name.startswith("Resource limit") or (hostname and service == hostname):
+    elif hostname and service.split(".", 1)[0].lower() == hostname.lower():
         event, severity = "monit-resource", "info" if recovery else "warning"
+    elif event_name.startswith("Resource limit"):
+        event, severity = "monit-process", "info" if recovery else "warning"
     else:
         event, severity = "monit-process", "info" if recovery else "critical"
     fields.pop("date", None)
@@ -158,18 +181,47 @@ def _classify_mdadm(subject, body, hostname):
 
 def _classify_updates(subject, body, hostname):
     match = _UPDATES_SUBJECT.match(subject)
-    if not match:
-        return None
-    fields = {"count": match.group("count") or "0"}
-    return "updates", "info", False, fields
+    if match:
+        return "updates", "info", False, {"count": match.group("count") or "0"}
+    if _LISTCHANGES_SUBJECT.match(subject):
+        return "updates", "info", False, {}
+    match = _UNATTENDED_SUBJECT.match(subject)
+    if match:
+        failed = match.group("result") == "FAILURE"
+        severity = "warning" if failed or match.group("flags") else "info"
+        return "updates", severity, False, {"host": match.group("host")}
+    return None
 
 
 def _classify_cron(subject, body, hostname):
-    match = _CRON_SUBJECT.match(subject)
-    if not match:
+    match = _CRON_SUBJECT.match(subject) or _CLAMAV_SCAN_SUBJECT.match(subject)
+    if match:
+        name = (match.group("name") or "").strip()
+        return "cron", "info", False, _non_empty({"name": name})
+    match = _USBBACKUP_SUBJECT.match(subject)
+    if match:
+        name = (match.group("name") or "").strip() or f"USB backup of {match.group('folder')}"
+        return "cron", "info", False, {"name": name, "device": match.group("device")}
+    return None
+
+
+def _classify_alerts(subject, body, hostname):
+    match = _IO_ERROR_SUBJECT.match(subject)
+    if match:
+        return "system", "critical", False, {"device": f"/dev/{match.group('device')}"}
+    if _VIRUS_SUBJECT.match(subject):
+        return "system", "critical", False, {}
+    return None
+
+
+def _classify_ups(subject, body, hostname):
+    if not _UPS_SUBJECT.search(subject):
         return None
-    name = (match.group("name") or "").strip()
-    return "cron", "info", False, _non_empty({"name": name})
+    if _UPS_RECOVERY.search(body):
+        return "system", "info", True, {}
+    if _UPS_CRITICAL.search(body):
+        return "system", "critical", False, {}
+    return "system", "warning", False, {}
 
 
 def _classify_auth(subject, body, hostname):
@@ -195,6 +247,8 @@ _MATCHERS = (
     _classify_mdadm,
     _classify_updates,
     _classify_cron,
+    _classify_alerts,
+    _classify_ups,
     _classify_auth,
     _classify_system,
 )

@@ -3,7 +3,7 @@ import json
 from omvnotifier import config as config_module
 
 MONIT_FS_SUBJECT = (
-    "[storagecenter.home.arpa] Monitoring alert -- Resource limit succeeded "
+    "Monitoring alert -- Resource limit succeeded "
     "filesystem_srv_dev-disk-by-uuid-01fd2738-e207-4442-b826-a6ac1025953a"
 )
 MONIT_FS_BODY = """The system monitoring needs your attention.

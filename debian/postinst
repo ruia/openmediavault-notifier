@@ -5,6 +5,8 @@ set -e
 . /etc/default/openmediavault
 . /usr/share/openmediavault/scripts/helper-functions
 
+TRANSPORT_MAP="/etc/postfix/notifier_transport"
+
 case "$1" in
 	configure)
 		echo "Updating configuration database ..."
@@ -13,8 +15,45 @@ case "$1" in
 			omv-confdbadm migrate "conf.service.notifier" "${2}"
 		fi
 
+		postfix_changed=0
+
+		# Up to 8.0.2 the stock emails were replaced by discarding all
+		# outgoing mail through the default transport.
+		if [ "$(omv_config_get "/config/services/notifier/replaceemail")" = "1" ] &&
+				[ "$(omv-env get --value-only OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT || :)" = "discard" ]; then
+			omv-env unset OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT
+			postfix_changed=1
+		fi
+
+		# The transport map that discards the stock emails to the admin
+		# addresses must exist before Postfix is configured to read it.
+		if [ ! -e "${TRANSPORT_MAP}" ]; then
+			echo "# Managed by openmediavault-notifier." > "${TRANSPORT_MAP}"
+			chmod 0600 "${TRANSPORT_MAP}"
+		fi
+		postmap "${TRANSPORT_MAP}"
+		maps="$(omv-env get --value-only OMV_POSTFIX_MAIN_TRANSPORT_MAPS || echo "hash:/etc/postfix/transport")"
+		case "${maps}" in
+			*"hash:${TRANSPORT_MAP}"*)
+			;;
+			*)
+				omv-env set -- OMV_POSTFIX_MAIN_TRANSPORT_MAPS "${maps}, hash:${TRANSPORT_MAP}"
+				postfix_changed=1
+			;;
+		esac
+
 		echo "Deploying notifier configuration ..."
-		omv-salt deploy run --no-color --quiet notifier
+		if ! LC_ALL=C.UTF-8 omv-salt deploy run --no-color --quiet notifier; then
+			echo "Deploying the notifier configuration failed, apply the pending changes in the web interface." >&2
+			omv_module_set_dirty notifier
+		fi
+		if [ "${postfix_changed}" = "1" ]; then
+			echo "Updating the Postfix configuration ..."
+			if ! LC_ALL=C.UTF-8 omv-salt stage run --no-color --quiet prepare ||
+					! LC_ALL=C.UTF-8 omv-salt deploy run --no-color --quiet postfix; then
+				echo "Updating the Postfix configuration failed. Run 'omv-salt stage run prepare' and 'omv-salt deploy run postfix' once the problem is fixed." >&2
+			fi
+		fi
 
 		dpkg-trigger update-workbench
 	;;

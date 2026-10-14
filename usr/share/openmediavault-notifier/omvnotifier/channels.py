@@ -47,15 +47,18 @@ def _discord(channel: Channel, rendered: Rendered, config: Config) -> None:
             "title": clip(rendered.title, DISCORD_TITLE_LIMIT),
             "description": clip(rendered.text, DISCORD_TEXT_LIMIT),
             "color": DISCORD_COLORS[rendered.severity],
-        }]
+        }],
+        "allowed_mentions": {"parse": []},
     }
     post_json(channel.url, payload)
 
 
 def _slack(channel: Channel, rendered: Rendered, config: Config) -> None:
+    title = slack_escape(rendered.title.replace("*", ""))
+    text = slack_escape(clip(rendered.text, SLACK_TEXT_LIMIT))
     payload = {
         "username": sender_name(channel, config),
-        "text": clip(f"*{rendered.title}*\n{rendered.text}", SLACK_TEXT_LIMIT),
+        "text": f"*{title}*\n{text}",
     }
     post_json(channel.url, payload)
 
@@ -94,7 +97,7 @@ def _email(channel: Channel, rendered: Rendered, config: Config) -> None:
     settings = config.email
     if not settings.enable:
         raise DeliveryError("email notifications are disabled in openmediavault")
-    recipients = channel.recipients or settings.default_recipients
+    recipients = email_recipients(channel, settings)
     if not recipients:
         raise DeliveryError("no recipients configured")
     if not settings.sender:
@@ -108,6 +111,7 @@ def _email(channel: Channel, rendered: Rendered, config: Config) -> None:
     message["X-OMV-Notifier"] = "1"
     message.set_content(rendered.text)
     message.add_alternative(rendered.html, subtype="html")
+    message.get_payload()[0]["X-OMV-Notifier"] = "1"
     envelope_sender = (
         f"{LOCAL_ENVELOPE_USER}@{config.fqdn}" if settings.is_local_server else settings.sender
     )
@@ -120,6 +124,15 @@ def _email(channel: Channel, rendered: Rendered, config: Config) -> None:
         raise DeliveryError(
             f"SMTP delivery via {settings.server}:{settings.port} failed: {exc}"
         ) from exc
+
+
+def email_recipients(channel: Channel, settings: EmailSettings) -> tuple:
+    if channel.recipients:
+        return channel.recipients
+    if settings.is_local_server and settings.primaryemail:
+        # openmediavault's Postfix copies mail for the primary address to the secondary one.
+        return (settings.primaryemail,)
+    return settings.default_recipients
 
 
 def _smtp_connect(settings: EmailSettings):
@@ -161,6 +174,10 @@ def post_json(url: str, payload: dict, headers=None) -> bytes:
 
 def sender_name(channel: Channel, config: Config) -> str:
     return channel.sendername or config.hostname
+
+
+def slack_escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def clip(text: str, limit: int) -> str:

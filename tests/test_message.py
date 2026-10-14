@@ -11,7 +11,7 @@ class MonitTest(unittest.TestCase):
         self.assertEqual(notification.event, "monit-filesystem")
         self.assertTrue(notification.recovery)
         self.assertEqual(notification.severity, "info")
-        self.assertEqual(notification.subject, MONIT_FS_SUBJECT.split("] ", 1)[1])
+        self.assertEqual(notification.subject, MONIT_FS_SUBJECT)
         self.assertEqual(
             notification.fields["service"],
             "filesystem_srv_dev-disk-by-uuid-01fd2738-e207-4442-b826-a6ac1025953a",
@@ -45,6 +45,23 @@ class MonitTest(unittest.TestCase):
         self.assertEqual(notification.severity, "warning")
         self.assertFalse(notification.recovery)
 
+    def test_resource_limit_on_process_check_is_process_warning(self):
+        notification = classify(
+            "Monitoring alert -- Resource limit matched nginx",
+            "Service: nginx\nEvent: Resource limit matched\n", hostname="storagecenter",
+        )
+        self.assertEqual(notification.event, "monit-process")
+        self.assertEqual(notification.severity, "warning")
+        self.assertEqual(notification.fields["service"], "nginx")
+
+    def test_system_check_matches_lowercased_or_fqdn_hostname(self):
+        for service in ("storagecenter", "storagecenter.home.arpa"):
+            notification = classify(
+                f"Monitoring alert -- Resource limit matched {service}",
+                f"Service: {service}\nEvent: Resource limit matched\n", hostname="StorageCenter",
+            )
+            self.assertEqual(notification.event, "monit-resource", service)
+
     def test_process_failure_is_critical(self):
         notification = classify("Monitoring alert -- Does not exist nginx", "Service: nginx\nEvent: Does not exist\n")
         self.assertEqual(notification.event, "monit-process")
@@ -70,6 +87,15 @@ class OtherSourcesTest(unittest.TestCase):
         self.assertEqual(notification.fields["type"], "CurrentPendingSector")
         self.assertTrue(notification.fields["deviceinfo"].startswith("WDC WD40EFRX"))
 
+    def test_smart_device_by_id_and_nvme(self):
+        by_id = "/dev/disk/by-id/ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1234567"
+        body = f"Device: {by_id} [SAT], 8 Currently unreadable (pending) sectors\n"
+        notification = classify("SMART error (CurrentPendingSector) detected on host: nas", body)
+        self.assertEqual(notification.fields["device"], by_id)
+        body = "Device: /dev/disk/by-id/nvme-Samsung_SSD_980_S123, Critical Warning (0x04): Reliability\n"
+        notification = classify("SMART error (Health) detected on host: nas", body)
+        self.assertEqual(notification.fields["device"], "/dev/disk/by-id/nvme-Samsung_SSD_980_S123")
+
     def test_smart_temperature_is_warning(self):
         notification = classify("SMART error (Temperature) detected on host: nas", "")
         self.assertEqual(notification.severity, "warning")
@@ -87,7 +113,7 @@ class OtherSourcesTest(unittest.TestCase):
         self.assertTrue(notification.recovery)
 
     def test_updates(self):
-        notification = classify("[nas] 12 package update(s) available", "")
+        notification = classify("12 package update(s) available", "")
         self.assertEqual(notification.event, "updates")
         self.assertEqual(notification.fields["count"], "12")
         self.assertEqual(classify("No package updates available", "").fields["count"], "0")
@@ -109,6 +135,56 @@ class OtherSourcesTest(unittest.TestCase):
         self.assertEqual(classify("Scrub report of the file system mounted at /srv/x [UUID=y]", "").severity, "info")
         self.assertEqual(classify("Test message from nas", "").event, "system")
 
+    def test_nut_upssched_messages(self):
+        cases = (
+            ("UPS ups@localhost - Running on line power. Shutdown cancelled.", "info", True),
+            ("Communications with the UPS ups@localhost are established", "info", True),
+            ("UPS ups@localhost - Line Power Fail, system running on battery power. "
+             "Shutdown imminent in 30 seconds.", "critical", False),
+            ("UPS ups@localhost - Line Power Fail, system running on battery power", "warning", False),
+            ("UPS ups@localhost - Low battery power", "critical", False),
+            ("UPS ups@localhost: - Forced shutdown in progress", "critical", False),
+            ("Automatic logout and shutdown proceeding", "critical", False),
+            ("upsmon parent process died - shutdown impossible", "critical", False),
+            ("Communications with the UPS ups@localhost are lost", "warning", False),
+            ("Communications with the UPS ups@localhost cannot be established", "warning", False),
+            ("UPS ups@localhost - The battery needs to be replaced!", "warning", False),
+        )
+        for body, severity, recovery in cases:
+            notification = classify("UPS notification from nas", body + "\n")
+            self.assertEqual(notification.event, "system", body)
+            self.assertEqual((notification.severity, notification.recovery), (severity, recovery), body)
+
+    def test_package_mail_subjects(self):
+        for subject in ("apt-listchanges: news for nas", "apt-listchanges: changelogs for nas",
+                        "=?UTF-8?Q?apt-listchanges=3A_news_for_nas?="):
+            self.assertEqual(classify(subject, "").event, "updates", subject)
+        cases = (
+            ("unattended-upgrades result for nas.lan: SUCCESS", "info"),
+            ("unattended-upgrades result for nas.lan: FAILURE", "warning"),
+            ("[reboot required] unattended-upgrades result for nas.lan: SUCCESS", "warning"),
+            ("[package on hold][reboot required] unattended-upgrades result for nas.lan: SUCCESS", "warning"),
+        )
+        for subject, severity in cases:
+            notification = classify(subject, "")
+            self.assertEqual((notification.event, notification.severity), ("updates", severity), subject)
+            self.assertEqual(notification.subject, subject)
+            self.assertEqual(notification.fields["host"], "nas.lan")
+
+    def test_plugin_and_kernel_subjects(self):
+        notification = classify("I/O error detected on device 'sdb'", "")
+        self.assertEqual((notification.event, notification.severity), ("system", "critical"))
+        self.assertEqual(notification.fields["device"], "/dev/sdb")
+        notification = classify("VIRUS ALERT: Win.Test.EICAR_HDB-1 login", "")
+        self.assertEqual((notification.event, notification.severity), ("system", "critical"))
+        self.assertEqual(classify("ClamAV - Scan summary", "").fields["name"], "Scan summary")
+        self.assertEqual(classify("ClamAV - nightly login scan", "").event, "cron")
+        notification = classify("USB Backup (shared folder=photos, device=/dev/disk/by-uuid/abc)", "")
+        self.assertEqual(notification.event, "cron")
+        self.assertEqual(notification.fields, {"name": "USB backup of photos", "device": "/dev/disk/by-uuid/abc"})
+        notification = classify("USB Backup (shared folder=a, b, device=/dev/sdc1) - Weekly", "")
+        self.assertEqual(notification.fields["name"], "Weekly")
+
     def test_unknown(self):
         notification = classify("Something else entirely", "body")
         self.assertEqual(notification.event, "unknown")
@@ -117,6 +193,27 @@ class OtherSourcesTest(unittest.TestCase):
 
     def test_empty_subject(self):
         self.assertEqual(classify("", "").subject, "")
+
+    def test_subject_keeps_first_line_only(self):
+        notification = classify("A SSL certificate expires in 5 days\nCN = nas", "")
+        self.assertEqual(notification.subject, "A SSL certificate expires in 5 days")
+        self.assertEqual(notification.severity, "warning")
+
+    def test_subject_rfc2047_decoding(self):
+        self.assertEqual(
+            classify("=?UTF-8?Q?apt-listchanges=3A_news_for_nas?=", "").subject,
+            "apt-listchanges: news for nas",
+        )
+        self.assertEqual(classify("=?utf-8?b?Q2Fmw6kg4pyT?=", "").subject, "Café ✓")
+        self.assertEqual(classify("Price =?x and =?? literal", "").subject, "Price =?x and =?? literal")
+
+    def test_encoded_line_breaks_are_flattened(self):
+        for subject in ("=?utf-8?q?a=0Ab?=", "=?utf-8?q?a=0D=0Ab?=", "a\rb", "=?utf-8?q?a=E2=80=A8b?="):
+            self.assertEqual(classify(subject, "").subject, "a b", subject)
+
+    def test_malformed_encoded_words_do_not_raise(self):
+        for subject in ("=?utf-8?b?!!!?=", "=?bogus?q?abc?=", "=?utf-8?b?wA==?="):
+            self.assertIsInstance(classify(subject, "").subject, str)
 
 
 class EventClassesTest(unittest.TestCase):

@@ -1,7 +1,7 @@
 version: "1.0"
 type: route
 data:
-  url: "/system/notification/notifier/create"
+  url: "/system/notification/notifier/channels/create"
   title: _("Create")
   editing: true
   notificationTitle: _("Created notification channel.")

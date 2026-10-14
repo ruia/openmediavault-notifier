@@ -1,3 +1,27 @@
+openmediavault-notifier (8.1.0) stable; urgency=low
+
+  * Move the notifier settings to their own page under
+    System > Notification > Notifier.
+  * Replace only the stock emails to the administrator addresses, mail to
+    other users is delivered as usual. The switch takes effect when the
+    configuration is applied.
+  * Restore the stock emails when the plugin is removed, and print the
+    recovery commands if the Postfix configuration cannot be updated.
+  * Ignore the email channel's own messages, they looped with a local SMTP
+    server.
+  * Send the default email recipients a single copy with a local SMTP server.
+  * Classify monit, file system, UPS, I/O error, virus alert, virus scan,
+    USB backup and update report messages.
+  * Decode encoded subjects and keep bracketed subject prefixes.
+  * Escape Slack markup and suppress Discord mentions.
+  * Keep delivering to the other channels when one channel fails.
+  * Run the channel test as the notification user.
+  * Write the SMTP password only when an email channel is enabled.
+  * Require openmediavault 8.0.5-2 or later, older releases drop all
+    outgoing mail.
+
+ -- Rui Almeida <rui.almeida011@gmail.com>  Wed, 14 Oct 2026 14:59:09 +0100
+
 openmediavault-notifier (8.0.2) stable; urgency=low
 
   * Add a per-channel sender name for Discord, Slack and email.

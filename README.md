@@ -35,7 +35,8 @@ Details: space usage test succeeded [current space usage = 92.4%]
 
 ## Requirements
 
-- openmediavault 8.x.
+- openmediavault 8.0.5-2 or later. Older 8.x releases drop all outgoing mail
+  once email notifications are enabled after the installation.
 - Email notifications enabled in System > Notification > Settings. The
   notification pipeline that feeds this plugin only runs when the mail
   system is active. You can keep an external SMTP server configured and still
@@ -47,7 +48,7 @@ Download the `.deb` from the [releases](https://github.com/ruia/openmediavault-n
 page, copy it to the server and install it:
 
 ```
-apt install ./openmediavault-notifier_8.0.2_all.deb
+apt install ./openmediavault-notifier_8.1.0_all.deb
 ```
 
 Then hard-reload the web interface (Ctrl+Shift+R). The web interface caches
@@ -60,9 +61,9 @@ removes the configuration.
 
 ## Configuration
 
-System > Notification > Channels.
+System > Notification > Notifier.
 
-### Channels tab
+### Channels
 
 Create one channel per destination.
 
@@ -84,12 +85,15 @@ Common fields:
 
 After saving, apply the pending configuration, then use the test button.
 
-### Settings tab
+### Settings
 
 - Enabled: global switch.
-- Replace openmediavault emails: sets `OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT=discard`
-  so the stock emails are dropped. Keep an Email channel to receive the
-  improved ones. Requires an external SMTP server in the notification
+- Replace openmediavault emails: discards the stock emails to the primary
+  and secondary addresses of the notification settings through the Postfix
+  transport map `/etc/postfix/notifier_transport`, which the plugin adds to
+  `OMV_POSTFIX_MAIN_TRANSPORT_MAPS` on install. Mail to other addresses, for
+  example to users, is still delivered. Keep an Email channel to receive the
+  improved emails. Requires an external SMTP server in the notification
   settings, mails sent through a local Postfix would be discarded too.
 - Web interface URL: optional link added to notifications.
 

@@ -82,6 +82,15 @@ class EnrichTest(unittest.TestCase):
         self.assertEqual(enriched.fields["serial"], "WD-WCC7K1234567")
         self.assertIn("Media", enriched.fields["filesystems"])
 
+    def test_smart_by_id_path_is_resolved(self):
+        by_id = "/dev/disk/by-id/ata-WDC_WD40EFRX-68N32N0_WD-WCC7K1234567"
+        notification = Notification(subject="s", body="", event="smart", fields={"device": by_id})
+        realpath = mock.Mock(return_value="/dev/sda")
+        enriched = enrich.enrich(notification, self.config, LSBLK_DEVICES, realpath=realpath)
+        realpath.assert_called_once_with(by_id)
+        self.assertEqual(enriched.fields["device"], "/dev/sda")
+        self.assertEqual(enriched.fields["serial"], "WD-WCC7K1234567")
+
     def test_other_events_are_untouched(self):
         notification = Notification(subject="Cron", body="", event="cron")
         self.assertIs(enrich.enrich(notification, self.config, LSBLK_DEVICES), notification)

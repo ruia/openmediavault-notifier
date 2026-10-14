@@ -87,7 +87,6 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         $this->validateMethodParams($params, "rpc.notifier.setsettings");
         $db = \OMV\Config\Database::getInstance();
         $object = $db->get("conf.service.notifier");
-        $replaceEmailChanged = $object->get("replaceemail") !== $params['replaceemail'];
         if ($params['replaceemail'] && $this->hasChannelOfType($db, "email")) {
             $this->assertExternalSmtpServer($db);
         }
@@ -97,9 +96,6 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
             "uiurl" => $params['uiurl'],
         ]);
         $db->set($object);
-        if ($replaceEmailChanged) {
-            $this->applyEmailTransport($params['replaceemail']);
-        }
         $object->remove("channels");
         return $object->getAssoc();
     }
@@ -166,7 +162,7 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         $object->setAssoc(array_intersect_key($params, array_flip(self::CHANNEL_PROPERTIES)));
         $db->assertIsUnique($object, "name", sprintf(
             gettext("A channel named '%s' already exists."),
-            $params['name']
+            str_replace("%", "%%", $params['name'])
         ));
         $db->set($object);
         return $this->channelToAssoc($object);
@@ -193,8 +189,9 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         if ($this->isModuleDirty("notifier")) {
             throw new \OMV\Config\ConfigDirtyException();
         }
-        $cmd = new \OMV\System\Process("omv-notifier", [
-            "test", escapeshellarg($params['uuid'])
+        $cmd = new \OMV\System\Process("runuser", [
+            "-u", "openmediavault-notify", "--",
+            "/usr/sbin/omv-notifier", "test", escapeshellarg($params['uuid'])
         ]);
         $cmd->setRedirect2to1();
         $cmd->execute($output);
@@ -288,29 +285,19 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
         }
     }
 
-    private function applyEmailTransport(bool $replace)
-    {
-        $cmdArgs = $replace
-            ? ["set", "--", "OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT", "discard"]
-            : ["unset", "OMV_POSTFIX_MAIN_DEFAULT_TRANSPORT"];
-        $cmd = new \OMV\System\Process("omv-env", $cmdArgs);
-        $cmd->setRedirect2to1();
-        $cmd->execute();
-        $cmd = new \OMV\System\Process("omv-salt", [
-            "stage", "run", "--no-color", "--quiet", "prepare"
-        ]);
-        $cmd->setRedirect2to1();
-        $cmd->execute();
-        $moduleMngr = \OMV\Engine\Module\Manager::getInstance();
-        $moduleMngr->getModule("postfix")->setDirty();
-    }
-
     private function loadEventClasses(): array
     {
         $cmd = new \OMV\System\Process("omv-notifier", ["events"]);
         $cmd->setRedirect2to1();
         $cmd->execute($output);
-        return json_decode_safe(implode("", $output), true);
+        $classes = json_decode_safe(implode("", $output), true);
+        if (!is_array($classes)) {
+            throw new \OMV\Exception(
+                "Failed to parse the output of 'omv-notifier events': %s",
+                json_last_error_msg()
+            );
+        }
+        return $classes;
     }
 
     private function splitList(string $value): array
