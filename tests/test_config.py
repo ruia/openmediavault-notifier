@@ -38,6 +38,14 @@ class ParseTest(unittest.TestCase):
         with self.assertRaisesRegex(config_module.ConfigError, "Pager.*pager"):
             config_module.parse(raw)
 
+    def test_telegram_connection_defaults_to_bot_api(self):
+        self.assertEqual(make_config().channels[0].transport, "botapi")
+
+    def test_unknown_connection_is_rejected(self):
+        raw = raw_config(channels=[raw_channel(type="telegram", name="Phone", transport="carrier-pigeon")])
+        with self.assertRaisesRegex(config_module.ConfigError, "Phone.*carrier-pigeon"):
+            config_module.parse(raw)
+
     def test_invalid_boolean_is_rejected(self):
         with self.assertRaisesRegex(config_module.ConfigError, "enable"):
             config_module.parse(raw_config(enable="maybe"))

@@ -7,6 +7,7 @@ import urllib.request
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
 
+from . import mtproto
 from .config import Channel, Config, EmailSettings
 from .render import Rendered
 
@@ -64,12 +65,24 @@ def _slack(channel: Channel, rendered: Rendered, config: Config) -> None:
 
 
 def _telegram(channel: Channel, rendered: Rendered, config: Config) -> None:
+    text = clip(f"{rendered.title}\n\n{rendered.text}", TELEGRAM_TEXT_LIMIT)
+    _TELEGRAM_TRANSPORTS[channel.transport](channel, text)
+
+
+def _telegram_botapi(channel: Channel, text: str) -> None:
     payload = {
         "chat_id": channel.chatid,
-        "text": clip(f"{rendered.title}\n\n{rendered.text}", TELEGRAM_TEXT_LIMIT),
+        "text": text,
         "disable_web_page_preview": True,
     }
     post_json(f"https://api.telegram.org/bot{channel.token}/sendMessage", payload)
+
+
+def _telegram_mtproxy(channel: Channel, text: str) -> None:
+    try:
+        mtproto.deliver(channel, text)
+    except mtproto.MTProtoError as exc:
+        raise DeliveryError(str(exc)) from exc
 
 
 def _ntfy(channel: Channel, rendered: Rendered, config: Config) -> None:
@@ -193,4 +206,9 @@ _SENDERS = {
     "ntfy": _ntfy,
     "gotify": _gotify,
     "email": _email,
+}
+
+_TELEGRAM_TRANSPORTS = {
+    "botapi": _telegram_botapi,
+    "mtproxy": _telegram_mtproxy,
 }

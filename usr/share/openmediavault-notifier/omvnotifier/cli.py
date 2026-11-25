@@ -6,7 +6,7 @@ import os
 import re
 import sys
 
-from . import channels, enrich, message, render
+from . import channels, enrich, message, mtproto, render
 from . import config as config_module
 
 LOG = logging.getLogger("omv-notifier")
@@ -44,6 +44,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     events = subparsers.add_parser("events", help="Print the known event classes as JSON.")
     events.set_defaults(func=cmd_events)
+
+    check_mtproxy = subparsers.add_parser(
+        "check-mtproxy", help="Validate Telegram MTProxy settings given as JSON on stdin."
+    )
+    check_mtproxy.set_defaults(func=cmd_check_mtproxy)
     return parser
 
 
@@ -136,6 +141,16 @@ def cmd_test(args) -> int:
 
 def cmd_events(args) -> int:
     print(json.dumps([{"value": key, "text": title} for key, title in message.EVENT_CLASSES]))
+    return 0
+
+
+def cmd_check_mtproxy(args) -> int:
+    settings = json.load(sys.stdin)
+    try:
+        mtproto.check(settings["mtproxy"], settings["apiid"], settings["apihash"], settings["chatid"])
+    except mtproto.MTProtoError as exc:
+        print(exc, file=sys.stderr)
+        return 1
     return 0
 
 

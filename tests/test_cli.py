@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -193,6 +194,33 @@ class TestCommandTest(CliTestCase):
         code, _, err = self.run_cli("test", "x")
         self.assertEqual(code, 1)
         self.assertIn("does not exist", err)
+
+
+class CheckMTProxyCommandTest(CliTestCase):
+    SECRET = "dd" + "b" * 32
+
+    def check(self, **overrides):
+        settings = {
+            "mtproxy": f"tg://proxy?server=proxy.example&port=443&secret={self.SECRET}",
+            "apiid": "123456", "apihash": "a" * 32, "chatid": "42",
+        }
+        settings.update(overrides)
+        with mock.patch.object(sys, "stdin", io.StringIO(json.dumps(settings))):
+            return self.run_cli("check-mtproxy")
+
+    def test_valid_settings(self):
+        self.assertEqual(self.check(), (0, "", ""))
+
+    def test_invalid_link_is_reported_without_the_secret(self):
+        code, out, err = self.check(mtproxy=f"tg://proxy?server=proxy.example&port=0&secret={self.SECRET}")
+        self.assertEqual(code, 1)
+        self.assertEqual(err.strip(), "the MTProxy link is not a valid Telegram proxy link")
+        self.assertNotIn(self.SECRET, out + err)
+
+    def test_invalid_api_id_is_reported(self):
+        code, _, err = self.check(apiid="abc")
+        self.assertEqual(code, 1)
+        self.assertIn("API ID", err)
 
 
 class EventsCommandTest(CliTestCase):

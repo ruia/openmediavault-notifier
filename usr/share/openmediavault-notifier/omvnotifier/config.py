@@ -6,6 +6,7 @@ from pathlib import Path
 DEFAULT_CONFIG_PATH = "/etc/openmediavault-notifier/config.json"
 CONFIG_PATH_ENV = "OMV_NOTIFIER_CONFIG"
 CHANNEL_TYPES = ("discord", "slack", "telegram", "ntfy", "gotify", "email")
+TELEGRAM_TRANSPORTS = ("botapi", "mtproxy")
 LOCAL_SMTP_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 
@@ -44,6 +45,10 @@ class Channel:
     url: str
     token: str
     chatid: str
+    transport: str
+    mtproxy: str
+    apiid: str
+    apihash: str
     topic: str
     recipients: tuple
     sendername: str
@@ -146,6 +151,9 @@ def _channel(item) -> Channel:
     channel_type = _str(item, "type")
     if channel_type not in CHANNEL_TYPES:
         raise ConfigError(f"channel '{item.get('name', '?')}' has unknown type '{channel_type}'")
+    transport = _str(item, "transport")
+    if transport not in TELEGRAM_TRANSPORTS:
+        raise ConfigError(f"channel '{item.get('name', '?')}' has unknown connection '{transport}'")
     return Channel(
         uuid=_str(item, "uuid"),
         enable=_bool(item, "enable"),
@@ -154,6 +162,10 @@ def _channel(item) -> Channel:
         url=_str(item, "url").strip().rstrip("/"),
         token=_str(item, "token").strip(),
         chatid=_str(item, "chatid").strip(),
+        transport=transport,
+        mtproxy=_str(item, "mtproxy").strip(),
+        apiid=_str(item, "apiid").strip(),
+        apihash=_str(item, "apihash").strip(),
         topic=_str(item, "topic").strip(),
         recipients=_csv(_str(item, "recipients")),
         sendername=_str(item, "sendername").strip(),
