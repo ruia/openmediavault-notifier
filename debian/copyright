@@ -5,6 +5,12 @@ Files: *
 Copyright: 2026 Rui Almeida <rui.almeida011@gmail.com>
 License: GPL-3+
 
+Files: usr/share/openmediavault-notifier/omvnotifier/mtproto.py
+       tests/test_mtproto.py
+Copyright: 2026 Rui Almeida <rui.almeida011@gmail.com>
+           2026 ddark008 <905996+ddark008@users.noreply.github.com>
+License: GPL-3+
+
 License: GPL-3+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

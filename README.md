@@ -31,7 +31,9 @@ Details: space usage test succeeded [current space usage = 92.4%]
 - Disk and share enrichment for file system and S.M.A.R.T. events.
 - Optional replacement of the stock openmediavault emails.
 - Test button per channel.
-- Python standard library only at runtime, no third-party modules.
+- Python standard library only at runtime, no third-party modules. The
+  optional Telegram MTProxy connection is the one exception, it uses a
+  separately installed runtime.
 
 ## Requirements
 
@@ -74,7 +76,7 @@ Create one channel per destination.
 |---|---|
 | Discord | incoming webhook URL, optional sender name |
 | Slack | incoming webhook URL, optional sender name |
-| Telegram | bot token, chat id |
+| Telegram | bot token, chat id, connection (Bot API or MTProxy) |
 | ntfy | server URL, topic, optional access token |
 | Gotify | server URL, application token |
 | Email | recipients (defaults to the notification settings addresses), optional sender name |
@@ -87,6 +89,33 @@ Common fields:
   header of emails. Defaults to the host name.
 
 After saving, apply the pending configuration, then use the test button.
+
+#### Telegram connection
+
+- Bot API (HTTPS), the default: messages go to `api.telegram.org` over
+  HTTPS. Nothing else is needed.
+- MTProxy: for networks that block `api.telegram.org` but can reach a
+  Telegram proxy. Besides the bot token and chat id (a numeric chat id or an
+  `@username`) it needs:
+  - the proxy link as shared in Telegram, `https://t.me/proxy?…` or
+    `tg://proxy?…`, with a simple, `dd` or `ee` (Fake TLS) secret
+  - the API ID and API hash of an application registered at
+    [my.telegram.org](https://my.telegram.org/apps)
+
+Saving checks the link and the API credentials. Switching a channel back to
+the Bot API clears the three MTProxy fields.
+
+MTProxy delivery runs a helper with the interpreter at
+`/opt/openmediavault-notifier-mtproxy/bin/python3`, which holds TDLib,
+Telegram's own client library. The runtime and the helper are not shipped
+yet, until they are an MTProxy channel reports that the runtime is not
+installed. Progress is tracked in
+[#3](https://github.com/ruia/openmediavault-notifier/issues/3).
+
+The proxy link, the API hash and the bot token never appear on a command
+line: they reach `omv-notifier` and the helper on stdin. Error messages show
+them as `***`. The proxy cannot read the messages or the bot token, it only
+forwards Telegram's encrypted traffic.
 
 ### Settings
 
@@ -165,11 +194,36 @@ run once when upgrading from an older version. Tagging `v<version>` on GitHub
 builds the package and attaches it to a release, with the changelog entry as
 the release notes.
 
+### MTProxy helper
+
+Telegram channels with the MTProxy connection hand the message to
+`usr/share/openmediavault-notifier/omvnotifier/mtproxy_helper.py`, run as
+`/opt/openmediavault-notifier-mtproxy/bin/python3 -I <helper>` by the
+notification user. The helper:
+
+- reads one JSON object on stdin: `api_id` (number), `api_hash`,
+  `bot_token`, `chat_id`, `proxy` (`server`, `port` as a number, `secret` in
+  hex) and `text`
+- exits 0 once Telegram confirmed the message
+- otherwise exits non-zero, the last line it writes to stderr becomes the
+  error message, with the bot token, API hash and proxy secret masked
+- is stopped after 30 seconds
+
+`omvnotifier/mtproto.py` validates the settings before the helper starts, so
+the helper receives a well-formed request.
+
 ### Roadmap
 
 - Editable message templates per event class.
 - Avatar for Discord and Slack.
 - Translations.
+
+## Credits
+
+Telegram MTProxy support was proposed and first built by
+[ddark008](https://github.com/ddark008) in
+[#3](https://github.com/ruia/openmediavault-notifier/issues/3). The plugin
+uses their proxy link parser and settings checks.
 
 ## License
 

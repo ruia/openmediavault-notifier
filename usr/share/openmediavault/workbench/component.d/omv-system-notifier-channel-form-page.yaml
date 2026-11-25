@@ -129,6 +129,124 @@ data:
             arg0:
               prop: type
             arg1: "telegram"
+      - type: select
+        name: transport
+        label: _("Connection")
+        hint: _("The Bot API connects to api.telegram.org over HTTPS. MTProxy connects through a Telegram proxy and needs the optional MTProxy runtime.")
+        value: "botapi"
+        store:
+          data:
+            - - "botapi"
+              - _("Bot API (HTTPS)")
+            - - "mtproxy"
+              - "MTProxy"
+        modifiers:
+          - type: visible
+            constraint:
+              operator: eq
+              arg0:
+                prop: type
+              arg1: "telegram"
+        validators:
+          required: true
+      - type: passwordInput
+        name: mtproxy
+        label: _("MTProxy link")
+        hint: _("The proxy link as shared in Telegram, starting with https://t.me/proxy? or tg://proxy?")
+        autocomplete: new-password
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: and
+              arg0:
+                operator: eq
+                arg0:
+                  prop: type
+                arg1: "telegram"
+              arg1:
+                operator: eq
+                arg0:
+                  prop: transport
+                arg1: "mtproxy"
+        validators:
+          requiredIf:
+            operator: and
+            arg0:
+              operator: eq
+              arg0:
+                prop: type
+              arg1: "telegram"
+            arg1:
+              operator: eq
+              arg0:
+                prop: transport
+              arg1: "mtproxy"
+      - type: textInput
+        name: apiid
+        label: _("API ID")
+        hint: _("The api_id of your application at my.telegram.org.")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: and
+              arg0:
+                operator: eq
+                arg0:
+                  prop: type
+                arg1: "telegram"
+              arg1:
+                operator: eq
+                arg0:
+                  prop: transport
+                arg1: "mtproxy"
+        validators:
+          requiredIf:
+            operator: and
+            arg0:
+              operator: eq
+              arg0:
+                prop: type
+              arg1: "telegram"
+            arg1:
+              operator: eq
+              arg0:
+                prop: transport
+              arg1: "mtproxy"
+      - type: passwordInput
+        name: apihash
+        label: _("API hash")
+        hint: _("The api_hash of your application at my.telegram.org.")
+        autocomplete: new-password
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: and
+              arg0:
+                operator: eq
+                arg0:
+                  prop: type
+                arg1: "telegram"
+              arg1:
+                operator: eq
+                arg0:
+                  prop: transport
+                arg1: "mtproxy"
+        validators:
+          requiredIf:
+            operator: and
+            arg0:
+              operator: eq
+              arg0:
+                prop: type
+              arg1: "telegram"
+            arg1:
+              operator: eq
+              arg0:
+                prop: transport
+              arg1: "mtproxy"
       - type: textInput
         name: topic
         label: _("Topic")

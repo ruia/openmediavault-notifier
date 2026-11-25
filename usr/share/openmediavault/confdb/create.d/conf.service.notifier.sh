@@ -21,6 +21,10 @@ set -e
 #           <url>xxx</url>
 #           <token>xxx</token>
 #           <chatid>xxx</chatid>
+#           <transport>botapi|mtproxy</transport>
+#           <mtproxy>xxx</mtproxy>
+#           <apiid>xxx</apiid>
+#           <apihash>xxx</apihash>
 #           <topic>xxx</topic>
 #           <recipients>xxx</recipients>
 #           <sendername>xxx</sendername>

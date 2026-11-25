@@ -45,8 +45,9 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
     private const URL_FIELD_TYPES = ["discord", "slack", "ntfy", "gotify"];
 
     private const CHANNEL_PROPERTIES = [
-        "uuid", "enable", "name", "type", "url", "token", "chatid", "topic",
-        "recipients", "sendername", "events", "skiprecovery",
+        "uuid", "enable", "name", "type", "url", "token", "chatid", "transport",
+        "mtproxy", "apiid", "apihash", "topic", "recipients", "sendername", "events",
+        "skiprecovery",
     ];
 
     private const LOCAL_SMTP_HOSTS = ["127.0.0.1", "localhost", "::1"];
@@ -155,6 +156,12 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
             "role" => OMV_ROLE_ADMINISTRATOR
         ]);
         $this->validateMethodParams($params, "rpc.notifier.setchannel");
+        if ($params['type'] !== "telegram") {
+            $params['transport'] = "botapi";
+        }
+        if ($params['transport'] !== "mtproxy") {
+            $params['mtproxy'] = $params['apiid'] = $params['apihash'] = "";
+        }
         $db = \OMV\Config\Database::getInstance();
         $this->assertChannelParams($params, $db);
         $params['events'] = implode(",", $params['events']);
@@ -230,6 +237,9 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
                 );
             }
         }
+        if ($type === "telegram" && $params['transport'] === "mtproxy") {
+            $this->assertMTProxySettings($params);
+        }
         if ($type === "email") {
             foreach ($this->splitList($params['recipients']) as $recipient) {
                 if (filter_var($recipient, FILTER_VALIDATE_EMAIL) === false) {
@@ -249,6 +259,32 @@ class Notifier extends \OMV\Rpc\ServiceAbstract
             if (!in_array($event, $known, true)) {
                 throw new \OMV\Exception("Unknown event class '%s'.", $event);
             }
+        }
+    }
+
+    private function assertMTProxySettings(array $params)
+    {
+        // \OMV\System\Process would put the secrets on the shell command line,
+        // which ps, the debug log and its exception messages show.
+        $process = proc_open(
+            ["/usr/sbin/omv-notifier", "check-mtproxy"],
+            [0 => ["pipe", "r"], 1 => ["file", "/dev/null", "w"], 2 => ["pipe", "w"]],
+            $pipes
+        );
+        if ($process === false) {
+            throw new \OMV\Exception("Failed to run 'omv-notifier check-mtproxy'.");
+        }
+        fwrite($pipes[0], json_encode_safe([
+            "mtproxy" => trim($params['mtproxy']),
+            "apiid" => trim($params['apiid']),
+            "apihash" => trim($params['apihash']),
+            "chatid" => trim($params['chatid']),
+        ]));
+        fclose($pipes[0]);
+        $error = trim(stream_get_contents($pipes[2]));
+        fclose($pipes[2]);
+        if (proc_close($process) !== 0) {
+            throw new \OMV\Exception("Invalid Telegram MTProxy settings: %s", $error);
         }
     }
 

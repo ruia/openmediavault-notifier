@@ -74,6 +74,23 @@
 				"type": "string",
 				"required": true
 			},
+			"transport": {
+				"type": "string",
+				"enum": [ "botapi", "mtproxy" ],
+				"required": true
+			},
+			"mtproxy": {
+				"type": "string",
+				"required": true
+			},
+			"apiid": {
+				"type": "string",
+				"required": true
+			},
+			"apihash": {
+				"type": "string",
+				"required": true
+			},
 			"topic": {
 				"type": "string",
 				"required": true
